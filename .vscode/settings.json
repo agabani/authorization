@@ -1,0 +1,6 @@
+{
+  "files.associations": {
+    "justfile": "makefile"
+  },
+  "rust-analyzer.cargo.allFeatures": true
+}
