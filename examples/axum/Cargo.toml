@@ -1,0 +1,13 @@
+[package]
+name = "examples-axum"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+authorization = { version = "0.1.0", path = "../../authorization" }
+axum = "^0.6"
+hyper = { version = "^1", features = ["full"] }
+pin-project = "^1"
+tokio = { version = "^1", features = ["full"] }
+tower = "^0.4"

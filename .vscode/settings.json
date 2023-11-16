@@ -1,4 +1,5 @@
 {
+  "cSpell.words": ["splitn"],
   "files.associations": {
     "justfile": "makefile"
   },
