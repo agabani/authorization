@@ -18,7 +18,7 @@ lint: lint-code lint-format
 
 # lint code
 lint-code:
-  @cargo clippy
+  @cargo clippy --workspace
 
 # lint format
 lint-format:
