@@ -19,6 +19,9 @@ runs:
         restore-keys: |
           ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           ${{ runner.os }}-cargo-
+    - name: "Toolchain: operating system"
+      run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+      shell: bash
     - name: "Toolchain: just"
       uses: extractions/setup-just@v1
       with:

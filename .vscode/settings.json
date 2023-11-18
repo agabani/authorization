@@ -1,5 +1,13 @@
 {
-  "cSpell.words": ["splitn"],
+  "cSpell.words": [
+    "cooldown",
+    "despawn",
+    "despawned",
+    "interactable",
+    "libasound",
+    "libudev",
+    "splitn"
+  ],
   "files.associations": {
     "justfile": "makefile"
   },
