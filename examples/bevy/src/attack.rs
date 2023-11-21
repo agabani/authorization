@@ -15,7 +15,7 @@ impl Plugin for AttackPlugin {
         app.add_plugins(AuthorizationEventPlugin::<Attack>::default())
             .add_event::<Attacked>()
             .add_systems(Update, attack.after(AuthorizationSet))
-            .add_systems(PostUpdate, (user_interface, inject));
+            .add_systems(PostUpdate, (inject, user_interface));
     }
 }
 

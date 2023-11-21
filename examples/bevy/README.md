@@ -8,7 +8,7 @@ cargo run --package examples-bevy
 
 `Players` and `Monsters` try to `attack` and `take` everything.
 
-When anything is `killed`, the `Game Master` tries spawn replacement `Players` and `Monsters`.
+When anything is `killed`, the `Game Master` tries to spawn replacement `Players` and `Monsters`.
 
 When anything is `killed`, the `Game Master` tries to spawn `Loot` for the `killer` to `take`.
 
