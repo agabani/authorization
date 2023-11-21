@@ -49,9 +49,9 @@ pub fn main() {
         .add_systems(
             Update,
             (
-                user_interface_spawned,
-                user_interface_despawned,
                 remove_despawned_from_database,
+                user_interface_despawned,
+                user_interface_spawned,
             ),
         );
 
@@ -176,7 +176,7 @@ fn insert_policies_into_database(mut database: ResMut<Database>) {
     }
 
     if allow_monster_attacking_player {
-        // any monster in the world can attack any monster in the world.
+        // any monster in the world can attack any player in the world.
         database.insert(authorization::Policy {
             actions: vec![authorization::Action {
                 noun: "*".to_string(),

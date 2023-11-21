@@ -109,26 +109,6 @@ fn spawn(
     }
 }
 
-/// Despawn [`Taken`] [`Loot`].
-#[allow(clippy::type_complexity)]
-fn despawn_taken(
-    mut commands: Commands,
-    query: Query<(Entity, &Taken, Option<&Identifier>), (With<Loot>, Changed<Taken>)>,
-    mut writer: EventWriter<Despawned>,
-) {
-    for (entity, taken, identifier) in &query {
-        if taken.is_taken() {
-            commands.entity(entity).despawn();
-
-            if let Some(identifier) = identifier {
-                writer.send(Despawned(identifier.clone()));
-            }
-        } else {
-            trace!("system triggered prematurely");
-        }
-    }
-}
-
 /// Allow all [`Entity`] to take abandoned [`Loot`].
 fn allow_all_entity_to_take_abandoned_loot(
     time: Res<Time>,
@@ -155,6 +135,26 @@ fn allow_all_entity_to_take_abandoned_loot(
             });
 
             info!("\n[LOOT EXCLUSIVITY EXPIRED]\n  {identifier:?}");
+        }
+    }
+}
+
+/// Despawn [`Taken`] [`Loot`].
+#[allow(clippy::type_complexity)]
+fn despawn_taken(
+    mut commands: Commands,
+    query: Query<(Entity, &Taken, Option<&Identifier>), (With<Loot>, Changed<Taken>)>,
+    mut writer: EventWriter<Despawned>,
+) {
+    for (entity, taken, identifier) in &query {
+        if taken.is_taken() {
+            commands.entity(entity).despawn();
+
+            if let Some(identifier) = identifier {
+                writer.send(Despawned(identifier.clone()));
+            }
+        } else {
+            trace!("system triggered prematurely");
         }
     }
 }
