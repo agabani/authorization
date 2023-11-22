@@ -1,6 +1,7 @@
+use authorization_bevy::Identifier;
 use bevy::prelude::*;
 
-use crate::{attack::Damaged, authorization_bevy::Identifier, stats::HitPoints, Despawned};
+use crate::{attack::Damaged, stats::HitPoints, Despawned};
 
 /// Kill Plugin.
 pub struct KillPlugin;

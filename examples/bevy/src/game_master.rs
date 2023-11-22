@@ -1,7 +1,7 @@
+use authorization_bevy::{AuthorizationSet, Identifier, Unauthorized};
 use bevy::{prelude::*, utils::Uuid};
 
 use crate::{
-    authorization_bevy::{AuthorizationSet, Identifier, Unauthorized},
     kill::Killed,
     loot::SpawnLoot,
     monster::{Monster, SpawnMonster},
@@ -34,7 +34,7 @@ fn spawn(mut commands: Commands) {
     commands.spawn((
         GameMaster,
         Identifier {
-            id: Uuid::new_v4(),
+            id: Uuid::new_v4().to_string(),
             noun: "game_master".to_string(),
             scope: "world".to_string(),
         },

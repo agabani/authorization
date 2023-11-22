@@ -1,19 +1,17 @@
+use authorization_bevy::{
+    AuthorizationEventPlugin, AuthorizationSet, Authorized, Identifier, IntoUnauthorizedContext,
+    Unauthorized,
+};
 use bevy::prelude::*;
 
-use crate::{
-    authorization_bevy::{
-        AuthorizationEventPlugin, AuthorizationSet, Authorized, Contextual, Identifier,
-        Unauthorized,
-    },
-    interactable::Interactable,
-};
+use crate::{interactable::Interactable, AuthorizationDatabase};
 
 /// Take Plugin.
 pub struct TakePlugin;
 
 impl Plugin for TakePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(AuthorizationEventPlugin::<Take>::default())
+        app.add_plugins(AuthorizationEventPlugin::<AuthorizationDatabase, Take>::default())
             .add_systems(Update, take.after(AuthorizationSet))
             .add_systems(Update, user_interface)
             .add_systems(PostUpdate, inject);
@@ -30,8 +28,8 @@ pub struct Take {
     pub what: Entity,
 }
 
-impl Contextual for Take {
-    fn context(
+impl IntoUnauthorizedContext for Take {
+    fn into_unauthorized_context(
         event: &Unauthorized<Self>,
         query: &Query<&Identifier>,
     ) -> Option<authorization::Context> {

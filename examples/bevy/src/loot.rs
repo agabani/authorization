@@ -1,21 +1,17 @@
+use authorization_bevy::{
+    AuthorizationEventPlugin, AuthorizationSet, Authorized, Identifier, IntoUnauthorizedContext,
+    Unauthorized,
+};
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::{
-    authorization_bevy::{
-        AuthorizationEventPlugin, AuthorizationSet, Authorized, Contextual, Database, Identifier,
-        Unauthorized,
-    },
-    interactable::Interactable,
-    take::Taken,
-    Despawned,
-};
+use crate::{interactable::Interactable, take::Taken, AuthorizationDatabase, Despawned};
 
 /// Loot Plugin.
 pub struct LootPlugin;
 
 impl Plugin for LootPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(AuthorizationEventPlugin::<SpawnLoot>::default())
+        app.add_plugins(AuthorizationEventPlugin::<AuthorizationDatabase, SpawnLoot>::default())
             .add_systems(Update, spawn.after(AuthorizationSet))
             .add_systems(
                 Update,
@@ -31,8 +27,8 @@ pub struct SpawnLoot {
     pub owner: Entity,
 }
 
-impl Contextual for SpawnLoot {
-    fn context(
+impl IntoUnauthorizedContext for SpawnLoot {
+    fn into_unauthorized_context(
         event: &Unauthorized<Self>,
         query: &Query<&Identifier>,
     ) -> Option<authorization::Context> {
@@ -70,14 +66,14 @@ struct AbandonedTimer(Timer);
 /// Spawns a [`Loot`].
 fn spawn(
     mut commands: Commands,
-    mut database: ResMut<Database>,
+    mut database: ResMut<AuthorizationDatabase>,
     mut reader: EventReader<Authorized<SpawnLoot>>,
     identifiers: Query<&Identifier>,
 ) {
     for event in reader.read() {
         if let Ok(target) = identifiers.get(event.data.owner) {
             let identifier = Identifier {
-                id: Uuid::new_v4(),
+                id: Uuid::new_v4().to_string(),
                 noun: "loot".to_string(),
                 scope: "world".to_string(),
             };
@@ -132,7 +128,7 @@ fn despawn_taken(
 /// Allow all [`Entity`] to take abandoned [`Loot`].
 fn allow_all_entity_to_take_abandoned_loot(
     time: Res<Time>,
-    mut database: ResMut<Database>,
+    mut database: ResMut<AuthorizationDatabase>,
     mut query: Query<(&Identifier, &mut AbandonedTimer), With<Loot>>,
 ) {
     for (identifier, mut timer) in &mut query {

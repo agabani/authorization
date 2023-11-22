@@ -1,10 +1,7 @@
+use authorization_bevy::{AuthorizationSet, Unauthorized};
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::{
-    attack::Attack,
-    authorization_bevy::{AuthorizationSet, Unauthorized},
-    take::Take,
-};
+use crate::{attack::Attack, take::Take};
 
 /// Artificial Intelligence Plugin.
 pub struct ArtificialIntelligencePlugin;
