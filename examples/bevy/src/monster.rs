@@ -1,13 +1,14 @@
+use authorization_bevy::{
+    AuthorizationEventPlugin, AuthorizationSet, Authorized, Identifier, IntoUnauthorizedContext,
+    Unauthorized,
+};
 use bevy::{prelude::*, utils::Uuid};
 
 use crate::{
     artificial_intelligence::ArtificialIntelligence,
-    authorization_bevy::{
-        AuthorizationEventPlugin, AuthorizationSet, Authorized, Contextual, Identifier,
-        Unauthorized,
-    },
     interactable::Interactable,
     stats::{AttackStat, DefenseStat, HitPoints},
+    AuthorizationDatabase,
 };
 
 /// Monster Plugin.
@@ -15,7 +16,10 @@ pub struct MonsterPlugin;
 
 impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(AuthorizationEventPlugin::<SpawnMonster>::default())
+        app.add_plugins(AuthorizationEventPlugin::<
+            AuthorizationDatabase,
+            SpawnMonster,
+        >::default())
             .add_systems(Update, spawn.after(AuthorizationSet));
     }
 }
@@ -24,8 +28,8 @@ impl Plugin for MonsterPlugin {
 #[derive(Debug, Clone, Event)]
 pub struct SpawnMonster;
 
-impl Contextual for SpawnMonster {
-    fn context(
+impl IntoUnauthorizedContext for SpawnMonster {
+    fn into_unauthorized_context(
         event: &Unauthorized<Self>,
         query: &Query<&Identifier>,
     ) -> Option<authorization::Context> {
@@ -62,7 +66,7 @@ fn spawn(mut commands: Commands, mut reader: EventReader<Authorized<SpawnMonster
         commands.spawn((
             Monster,
             Identifier {
-                id: Uuid::new_v4(),
+                id: Uuid::new_v4().to_string(),
                 noun: "monster".to_string(),
                 scope: "world".to_string(),
             },

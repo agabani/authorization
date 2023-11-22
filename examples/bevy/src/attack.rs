@@ -1,10 +1,12 @@
+use authorization_bevy::{
+    AuthorizationEventPlugin, AuthorizationSet, Authorized, Identifier, IntoUnauthorizedContext,
+    Unauthorized,
+};
 use bevy::prelude::*;
 
 use crate::{
-    authorization_bevy::{
-        AuthorizationEventPlugin, AuthorizationSet, Authorized, Contextual, Identifier,
-    },
     stats::{AttackStat, DefenseStat, HitPoints},
+    AuthorizationDatabase,
 };
 
 /// Attack Plugin.
@@ -12,7 +14,7 @@ pub struct AttackPlugin;
 
 impl Plugin for AttackPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(AuthorizationEventPlugin::<Attack>::default())
+        app.add_plugins(AuthorizationEventPlugin::<AuthorizationDatabase, Attack>::default())
             .add_event::<Attacked>()
             .add_systems(Update, attack.after(AuthorizationSet))
             .add_systems(PostUpdate, (inject, user_interface));
@@ -29,10 +31,10 @@ pub struct Attack {
     pub what: Entity,
 }
 
-impl Contextual for Attack {
-    fn context(
-        event: &crate::authorization_bevy::Unauthorized<Self>,
-        query: &Query<&crate::authorization_bevy::Identifier>,
+impl IntoUnauthorizedContext for Attack {
+    fn into_unauthorized_context(
+        event: &Unauthorized<Self>,
+        query: &Query<&Identifier>,
     ) -> Option<authorization::Context> {
         let actor = query.get(event.actor);
         let who = query.get(event.data.who);

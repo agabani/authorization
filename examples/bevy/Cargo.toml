@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 authorization = { version = "0.1.0", path = "../../authorization" }
+authorization-bevy = { version = "0.1.0", path = "../../authorization-bevy" }
 bevy = "^0.12"
 
 [profile.dev]

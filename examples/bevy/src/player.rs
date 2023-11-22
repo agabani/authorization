@@ -1,13 +1,14 @@
+use authorization_bevy::{
+    AuthorizationEventPlugin, AuthorizationSet, Authorized, Identifier, IntoUnauthorizedContext,
+    Unauthorized,
+};
 use bevy::{prelude::*, utils::Uuid};
 
 use crate::{
     artificial_intelligence::ArtificialIntelligence,
-    authorization_bevy::{
-        AuthorizationEventPlugin, AuthorizationSet, Authorized, Contextual, Identifier,
-        Unauthorized,
-    },
     interactable::Interactable,
     stats::{AttackStat, DefenseStat, HitPoints},
+    AuthorizationDatabase,
 };
 
 /// Player Plugin.
@@ -15,7 +16,7 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(AuthorizationEventPlugin::<SpawnPlayer>::default())
+        app.add_plugins(AuthorizationEventPlugin::<AuthorizationDatabase, SpawnPlayer>::default())
             .add_systems(Update, spawn.after(AuthorizationSet));
     }
 }
@@ -24,8 +25,8 @@ impl Plugin for PlayerPlugin {
 #[derive(Debug, Clone, Event)]
 pub struct SpawnPlayer;
 
-impl Contextual for SpawnPlayer {
-    fn context(
+impl IntoUnauthorizedContext for SpawnPlayer {
+    fn into_unauthorized_context(
         event: &Unauthorized<Self>,
         query: &Query<&Identifier>,
     ) -> Option<authorization::Context> {
@@ -62,7 +63,7 @@ fn spawn(mut commands: Commands, mut reader: EventReader<Authorized<SpawnPlayer>
         commands.spawn((
             Player,
             Identifier {
-                id: Uuid::new_v4(),
+                id: Uuid::new_v4().to_string(),
                 noun: "player".to_string(),
                 scope: "world".to_string(),
             },

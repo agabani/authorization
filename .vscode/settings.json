@@ -6,7 +6,8 @@
     "interactable",
     "libasound",
     "libudev",
-    "splitn"
+    "splitn",
+    "wgpu"
   ],
   "files.associations": {
     "justfile": "makefile"
