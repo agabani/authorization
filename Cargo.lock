@@ -1665,6 +1665,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "examples-bevy-async"
+version = "0.1.0"
+dependencies = [
+ "authorization",
+ "bevy",
+ "futures-lite 2.0.1",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1803,7 +1812,11 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3831c2651acb5177cbd83943f3d9c8912c5ad03c76afcc0e9511ba568ec5ebb"
 dependencies = [
+ "fastrand 2.0.1",
  "futures-core",
+ "futures-io",
+ "memchr",
+ "parking",
  "pin-project-lite",
 ]
 
