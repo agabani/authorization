@@ -1,5 +1,6 @@
 mod authorization_bevy;
 mod game_master;
+mod monster;
 mod player;
 
 use std::sync::{Arc, Mutex};
@@ -7,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use authorization_bevy::{AuthorizationService, Database, Identifier};
 use bevy::{log::LogPlugin, prelude::*, utils::Uuid};
 use game_master::{GameMaster, GameMasterPlugin};
+use monster::MonsterPlugin;
 use player::PlayerPlugin;
 
 fn main() {
@@ -56,7 +58,7 @@ fn main() {
 
     app.insert_resource(AuthorizationService::new(Arc::new(Mutex::new(database))));
 
-    app.add_plugins((PlayerPlugin, GameMasterPlugin))
+    app.add_plugins((GameMasterPlugin, MonsterPlugin, PlayerPlugin))
         .add_systems(Startup, setup)
         .add_systems(Update, user_interface_spawned);
 
