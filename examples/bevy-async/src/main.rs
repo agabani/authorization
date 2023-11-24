@@ -1,10 +1,14 @@
+mod artificial_intelligence;
+mod attack;
 mod authorization_bevy;
 mod game_master;
 mod monster;
 mod player;
+mod stats;
 
 use std::sync::{Arc, Mutex};
 
+use artificial_intelligence::ArtificialIntelligencePlugin;
 use authorization_bevy::{AuthorizationService, Database, Identifier};
 use bevy::{log::LogPlugin, prelude::*, utils::Uuid};
 use game_master::{GameMaster, GameMasterPlugin};
@@ -12,7 +16,11 @@ use monster::MonsterPlugin;
 use player::PlayerPlugin;
 
 fn main() {
+    let allow_player_attacking_monster = true;
+
     let mut database = Database::default();
+
+    // any game master in the world can spawn loot, monsters, and players into the world.
     database.insert(authorization::Policy {
         actions: vec![
             authorization::Action {
@@ -46,6 +54,30 @@ fn main() {
         }],
     });
 
+    if allow_player_attacking_monster {
+        // any player in the world can attack any monster in the world.
+        database.insert(authorization::Policy {
+            actions: vec![authorization::Action {
+                noun: "*".to_string(),
+                scope: "world".to_string(),
+                verb: "attack".to_string(),
+            }],
+            conditions: vec![],
+            effect: authorization::Effect::Allow,
+            id: Uuid::new_v4().to_string(),
+            principals: vec![authorization::Principal {
+                id: "*".to_string(),
+                noun: "player".to_string(),
+                scope: "world".to_string(),
+            }],
+            resources: vec![authorization::Resource {
+                id: "*".to_string(),
+                noun: "monster".to_string(),
+                scope: "world".to_string(),
+            }],
+        });
+    }
+
     let mut app = App::new();
 
     app.add_plugins((
@@ -58,9 +90,14 @@ fn main() {
 
     app.insert_resource(AuthorizationService::new(Arc::new(Mutex::new(database))));
 
-    app.add_plugins((GameMasterPlugin, MonsterPlugin, PlayerPlugin))
-        .add_systems(Startup, setup)
-        .add_systems(Update, user_interface_spawned);
+    app.add_plugins((
+        ArtificialIntelligencePlugin,
+        GameMasterPlugin,
+        MonsterPlugin,
+        PlayerPlugin,
+    ))
+    .add_systems(Startup, setup)
+    .add_systems(Update, user_interface_spawned);
 
     app.run();
 }

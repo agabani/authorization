@@ -1,6 +1,10 @@
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::authorization_bevy::{AuthorizationTask, Identifier, IntoContext};
+use crate::{
+    artificial_intelligence::ArtificialIntelligence,
+    authorization_bevy::{AuthorizationTask, Identifier, IntoContext},
+    stats::{AttackStat, DefenseStat, HitPoints},
+};
 
 /// Player Plugin.
 pub struct PlayerPlugin;
@@ -64,6 +68,10 @@ fn spawn_player(
                                 noun: "player".to_string(),
                                 scope: "world".to_string(),
                             },
+                            ArtificialIntelligence,
+                            AttackStat(10),
+                            DefenseStat(8),
+                            HitPoints(10),
                         ));
                 }
                 Err(error) => {

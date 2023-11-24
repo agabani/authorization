@@ -86,7 +86,7 @@ where
     /// Returns [`Context`] for an [`Unauthorized`] event.
     fn into_context(
         unauthorized: &Unauthorized<Self>,
-        query: &Query<&Identifier>,
+        identifiers: &Query<&Identifier>,
     ) -> Option<authorization::Context>;
 }
 
@@ -112,19 +112,22 @@ impl AuthorizationService {
     pub fn authorize<T>(
         &self,
         unauthorized: Unauthorized<T>,
-        query: &Query<&Identifier>,
+        identifiers: &Query<&Identifier>,
     ) -> Option<AuthorizationTask<T>>
     where
         T: IntoContext + Clone + Send + 'static,
     {
-        T::into_context(&unauthorized, query)
+        T::into_context(&unauthorized, identifiers)
             .map(|context| AuthorizationTask::new(unauthorized, context, self.database.clone()))
     }
 }
 
 /// Authorization Task.
 #[derive(Debug, Component)]
-pub struct AuthorizationTask<T>(Task<Result<Authorized<T>, AuthorizationError>>);
+pub struct AuthorizationTask<T> {
+    result: Option<Result<Authorized<T>, AuthorizationError>>,
+    task: Task<Result<Authorized<T>, AuthorizationError>>,
+}
 
 impl<T> AuthorizationTask<T>
 where
@@ -136,7 +139,7 @@ where
         context: authorization::Context,
         database: Arc<Mutex<Database>>,
     ) -> Self {
-        AuthorizationTask(AsyncComputeTaskPool::get().spawn(async move {
+        let task = AsyncComputeTaskPool::get().spawn(async move {
             let context = context;
             let database = database;
             let unauthorized = unauthorized;
@@ -166,12 +169,19 @@ where
                     Err(AuthorizationError::Denied)
                 },
             }
-        }))
+        });
+
+        AuthorizationTask { result: None, task }
     }
 
     /// Polls a future just once and returns an [`Option`] with the result.
-    pub fn poll_once(&mut self) -> Option<Result<Authorized<T>, AuthorizationError>> {
-        future::block_on(future::poll_once(&mut self.0))
+    pub fn poll_once(&mut self) -> &Option<Result<Authorized<T>, AuthorizationError>> {
+        if self.result.is_some() {
+            return &self.result;
+        }
+
+        self.result = future::block_on(future::poll_once(&mut self.task));
+        &self.result
     }
 }
 
