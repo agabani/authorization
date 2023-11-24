@@ -3,6 +3,7 @@ mod attack;
 mod authorization_bevy;
 mod game_master;
 mod kill;
+mod loot;
 mod monster;
 mod player;
 mod stats;
