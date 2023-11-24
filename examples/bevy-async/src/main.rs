@@ -2,6 +2,7 @@ mod artificial_intelligence;
 mod attack;
 mod authorization_bevy;
 mod game_master;
+mod kill;
 mod monster;
 mod player;
 mod stats;
@@ -13,6 +14,7 @@ use attack::AttackPlugin;
 use authorization_bevy::{AuthorizationService, Database, Identifier};
 use bevy::{log::LogPlugin, prelude::*, utils::Uuid};
 use game_master::{GameMaster, GameMasterPlugin};
+use kill::KillPlugin;
 use monster::MonsterPlugin;
 use player::PlayerPlugin;
 
@@ -95,6 +97,7 @@ fn main() {
         ArtificialIntelligencePlugin,
         AttackPlugin,
         GameMasterPlugin,
+        KillPlugin,
         MonsterPlugin,
         PlayerPlugin,
     ))

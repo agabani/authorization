@@ -74,9 +74,10 @@ fn spawn_monster(
                             HitPoints(10),
                         ));
                 }
-                Err(error) => {
-                    println!("{error:?}");
-                    commands.entity(entity).despawn();
+                Err(_) => {
+                    if let Some(mut entity) = commands.get_entity(entity) {
+                        entity.despawn();
+                    }
                 }
             }
         }

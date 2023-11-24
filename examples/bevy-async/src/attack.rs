@@ -103,43 +103,35 @@ fn attack(
 ) {
     query.for_each_mut(|mut task| {
         if let Some(result) = task.poll_once() {
-            match result {
-                Ok(attack) => {
-                    let who = attacker.get(attack.data.who);
-                    let what = defender.get_mut(attack.data.what);
+            if let Ok(attack) = result {
+                let who = attacker.get(attack.data.who);
+                let what = defender.get_mut(attack.data.what);
 
-                    let (Ok(attack_stat), Ok((mut hit_points, defense_stat, damaged))) =
-                        (who, what)
-                    else {
-                        return;
-                    };
+                let (Ok(attack_stat), Ok((mut hit_points, defense_stat, damaged))) = (who, what)
+                else {
+                    return;
+                };
 
-                    if let Some(mut damaged) = damaged {
-                        if hit_points.0 > 0 {
-                            let attack_stat = attack_stat.0 as i32;
-                            let defense_stat = defense_stat.0 as i32;
+                if let Some(mut damaged) = damaged {
+                    if hit_points.0 > 0 {
+                        let attack_stat = attack_stat.0 as i32;
+                        let defense_stat = defense_stat.0 as i32;
 
-                            let damage = (attack_stat - defense_stat).max(0);
-                            hit_points.0 = (hit_points.0 as i32 - damage).max(0) as u32;
+                        let damage = (attack_stat - defense_stat).max(0);
+                        hit_points.0 = (hit_points.0 as i32 - damage).max(0) as u32;
 
-                            writer.send(Attacked {
-                                who: attack.data.who,
-                                what: attack.data.what,
-                                damage: damage as u32,
-                                what_hit_points: hit_points.0,
-                                _private: (),
-                            });
+                        writer.send(Attacked {
+                            who: attack.data.who,
+                            what: attack.data.what,
+                            damage: damage as u32,
+                            what_hit_points: hit_points.0,
+                            _private: (),
+                        });
 
-                            if damage > 0 {
-                                damaged.by = Some(attack.data.who)
-                            }
+                        if damage > 0 {
+                            damaged.by = Some(attack.data.who)
                         }
-                    } else {
-                        trace!("target has 0 hit points");
                     }
-                }
-                Err(error) => {
-                    println!("{error:?}");
                 }
             }
         }
