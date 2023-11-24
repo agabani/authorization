@@ -9,6 +9,7 @@ mod stats;
 use std::sync::{Arc, Mutex};
 
 use artificial_intelligence::ArtificialIntelligencePlugin;
+use attack::AttackPlugin;
 use authorization_bevy::{AuthorizationService, Database, Identifier};
 use bevy::{log::LogPlugin, prelude::*, utils::Uuid};
 use game_master::{GameMaster, GameMasterPlugin};
@@ -92,6 +93,7 @@ fn main() {
 
     app.add_plugins((
         ArtificialIntelligencePlugin,
+        AttackPlugin,
         GameMasterPlugin,
         MonsterPlugin,
         PlayerPlugin,

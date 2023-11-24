@@ -96,22 +96,17 @@ pub struct Damaged {
 
 /// Actions [`Authorized`] [`Attack`].
 fn attack(
-    mut commands: Commands,
     mut writer: EventWriter<Attacked>,
-    mut query: Query<(Entity, &mut AuthorizationTask<Attack>)>,
+    mut query: Query<&mut AuthorizationTask<Attack>>,
     attacker: Query<&AttackStat>,
     mut defender: Query<(&mut HitPoints, &DefenseStat, Option<&mut Damaged>)>,
 ) {
-    query.for_each_mut(|(entity, mut task)| {
+    query.for_each_mut(|mut task| {
         if let Some(result) = task.poll_once() {
             match result {
-                Ok(event) => {
-                    commands
-                        .entity(entity)
-                        .remove::<AuthorizationTask<Attack>>();
-
-                    let who = attacker.get(event.data.who);
-                    let what = defender.get_mut(event.data.what);
+                Ok(attack) => {
+                    let who = attacker.get(attack.data.who);
+                    let what = defender.get_mut(attack.data.what);
 
                     let (Ok(attack_stat), Ok((mut hit_points, defense_stat, damaged))) =
                         (who, what)
@@ -128,15 +123,15 @@ fn attack(
                             hit_points.0 = (hit_points.0 as i32 - damage).max(0) as u32;
 
                             writer.send(Attacked {
-                                who: event.data.who,
-                                what: event.data.what,
+                                who: attack.data.who,
+                                what: attack.data.what,
                                 damage: damage as u32,
                                 what_hit_points: hit_points.0,
                                 _private: (),
                             });
 
                             if damage > 0 {
-                                damaged.by = Some(event.data.who)
+                                damaged.by = Some(attack.data.who)
                             }
                         }
                     } else {

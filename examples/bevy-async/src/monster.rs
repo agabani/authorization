@@ -1,6 +1,10 @@
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::authorization_bevy::{AuthorizationTask, Identifier, IntoContext};
+use crate::{
+    artificial_intelligence::ArtificialIntelligence,
+    authorization_bevy::{AuthorizationTask, Identifier, IntoContext},
+    stats::{AttackStat, DefenseStat, HitPoints},
+};
 
 /// Monster Plugin.
 pub struct MonsterPlugin;
@@ -64,6 +68,10 @@ fn spawn_monster(
                                 noun: "monster".to_string(),
                                 scope: "world".to_string(),
                             },
+                            ArtificialIntelligence,
+                            AttackStat(9),
+                            DefenseStat(5),
+                            HitPoints(10),
                         ));
                 }
                 Err(error) => {

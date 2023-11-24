@@ -10,8 +10,10 @@ pub struct ArtificialIntelligencePlugin;
 
 impl Plugin for ArtificialIntelligencePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, inject)
-            .add_systems(Update, (try_attack_a_random_entity, failed_attacks));
+        app.add_systems(PostUpdate, inject).add_systems(
+            Update,
+            (try_attack_a_random_entity, remove_completed_attack_request),
+        );
     }
 }
 
@@ -40,8 +42,8 @@ fn inject(mut commands: Commands, query: Query<Entity, Added<ArtificialIntellige
 /// Try to attack a random [`Entity`].
 fn try_attack_a_random_entity(
     mut commands: Commands,
-    authorization_service: Res<AuthorizationService>,
     time: Res<Time>,
+    authorization_service: Res<AuthorizationService>,
     mut query: Query<
         (Entity, &mut AttackCooldown),
         (
@@ -81,17 +83,15 @@ fn try_attack_a_random_entity(
     });
 }
 
-fn failed_attacks(
+fn remove_completed_attack_request(
     mut commands: Commands,
     mut query: Query<(Entity, &mut AuthorizationTask<Attack>), With<ArtificialIntelligence>>,
 ) {
     query.for_each_mut(|(entity, mut task)| {
-        if let Some(Err(error)) = task.poll_once() {
+        if task.poll_once().is_some() {
             commands
                 .entity(entity)
                 .remove::<AuthorizationTask<Attack>>();
-
-            warn!("[ATTACK:FAILED] {error:?}");
         }
-    })
+    });
 }
