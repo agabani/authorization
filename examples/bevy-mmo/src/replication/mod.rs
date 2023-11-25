@@ -66,6 +66,7 @@ fn protocol(mut query: Query<(&ConnectionRx, &ConnectionTx, &mut KeepAliveTimeou
                     }
                     Protocol::Pong => todo!(),
                     Protocol::Disconnected => todo!(),
+                    Protocol::Authorize(_context, _tx) => todo!(),
                 }
             });
     });

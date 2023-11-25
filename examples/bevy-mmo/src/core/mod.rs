@@ -1,6 +1,28 @@
-use std::sync::{mpsc, Mutex};
+use std::{
+    marker::PhantomData,
+    sync::{mpsc, Mutex},
+};
 
 use bevy::prelude::*;
+
+/*
+ * ============================================================================
+ * Identity
+ * ============================================================================
+ */
+
+/// Identifier.
+#[derive(Debug, Clone, Component)]
+pub struct Identifier {
+    /// Id.
+    pub id: String,
+
+    /// Noun.
+    pub noun: String,
+
+    /// Scope.
+    pub scope: String,
+}
 
 /*
  * ============================================================================
@@ -46,6 +68,71 @@ where
     }
 }
 
+#[derive(Component)]
+pub struct AuthorizationService;
+
+impl AuthorizationService {
+    /// Create a new [`AuthorizationTask`].
+    pub fn authorize<T>(
+        &self,
+        unauthorized: Unauthorized<T>,
+        identifiers: &Query<&Identifier>,
+        tx: &ConnectionTx,
+    ) -> Option<AuthorizationTask<T>>
+    where
+        T: IntoContext + Clone + Send + 'static,
+    {
+        T::into_context(&unauthorized, identifiers).map(|context| {
+            let (tx1, rx) = mpsc::channel();
+            tx.0.send(Protocol::Authorize(context, tx1));
+            AuthorizationTask {
+                result: None,
+                rx,
+                marker: PhantomData,
+            }
+        })
+    }
+}
+
+#[derive(Component)]
+pub struct AuthorizationTask<T> {
+    result: Option<Result<authorization::Context, ()>>,
+    rx: mpsc::Receiver<Result<authorization::Context, ()>>,
+    marker: PhantomData<T>,
+}
+
+impl<T> AuthorizationTask<T> {
+    /// Polls a future just once and returns an [`Option`] with the result.
+    pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, ()>> {
+        if self.result.is_some() {
+            return &self.result;
+        }
+
+        match self.rx.try_recv() {
+            Ok(result) => {
+                self.result = Some(result);
+                &self.result
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                todo!()
+            }
+            Err(mpsc::TryRecvError::Empty) => &self.result,
+        }
+    }
+}
+
+/// Into Context.
+pub trait IntoContext
+where
+    Self: Sized,
+{
+    /// Returns [`Context`] for an [`Unauthorized`] event.
+    fn into_context(
+        unauthorized: &Unauthorized<Self>,
+        identifiers: &Query<&Identifier>,
+    ) -> Option<authorization::Context>;
+}
+
 /*
  * ============================================================================
  * Networking
@@ -69,6 +156,10 @@ pub enum Protocol {
     Disconnected,
     Ping,
     Pong,
+    Authorize(
+        authorization::Context,
+        mpsc::Sender<Result<authorization::Context, ()>>,
+    ),
 }
 
 /*
