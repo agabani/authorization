@@ -1674,6 +1674,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "examples-bevy-mmo"
+version = "0.1.0"
+dependencies = [
+ "authorization",
+ "bevy",
+ "futures-lite 2.0.1",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
