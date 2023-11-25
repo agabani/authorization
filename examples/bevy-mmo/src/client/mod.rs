@@ -5,7 +5,7 @@ use std::{
 
 use bevy::{log::LogPlugin, prelude::*};
 
-use crate::{ConnectionRx, ConnectionTx, NetworkHandshake, Protocol};
+use crate::core::{ConnectionRx, ConnectionTx, NetworkHandshake, Protocol};
 
 pub fn app_run(tx: mpsc::Sender<NetworkHandshake>, principal: authorization::Principal) {
     let mut app = App::new();

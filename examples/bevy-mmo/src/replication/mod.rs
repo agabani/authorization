@@ -2,7 +2,7 @@ use std::sync::{mpsc, Mutex};
 
 use bevy::{log::LogPlugin, prelude::*};
 
-use crate::{ConnectionRx, ConnectionTx, NetworkHandshake, Protocol};
+use crate::core::{ConnectionRx, ConnectionTx, NetworkHandshake, Protocol};
 
 pub fn app_run(rx: mpsc::Receiver<NetworkHandshake>) {
     let mut app = App::new();

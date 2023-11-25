@@ -1,12 +1,10 @@
 mod client;
+mod core;
 mod replication;
 
-use std::{
-    sync::{mpsc, Mutex},
-    thread,
-};
+use std::{sync::mpsc, thread};
 
-use bevy::{prelude::*, utils::Uuid};
+use bevy::utils::Uuid;
 
 fn main() {
     let (tx, rx) = mpsc::channel();
@@ -44,23 +42,4 @@ fn main() {
     for handle in handles {
         handle.join().unwrap();
     }
-}
-
-#[derive(Component)]
-struct ConnectionTx(mpsc::Sender<Protocol>);
-
-#[derive(Component)]
-struct ConnectionRx(Mutex<mpsc::Receiver<Protocol>>);
-
-struct NetworkHandshake {
-    principal: authorization::Principal,
-    tx: mpsc::Sender<Protocol>,
-}
-
-#[derive(Debug)]
-enum Protocol {
-    Connected(mpsc::Sender<Protocol>),
-    Disconnected,
-    Ping,
-    Pong,
 }
