@@ -6,18 +6,39 @@ use std::{
     thread,
 };
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::Uuid};
 
 fn main() {
-    let (tx, rx) = mpsc::channel::<Handshake>();
-
-    let tx_1 = tx.clone();
-    let tx_2 = tx.clone();
+    let (tx, rx) = mpsc::channel();
 
     let handles = [
         thread::spawn(move || replication::app_run(rx)),
-        thread::spawn(move || client::app_run(tx_1, client::Role::Ai)),
-        thread::spawn(move || client::app_run(tx_2, client::Role::Authority)),
+        {
+            let tx = tx.clone();
+            thread::spawn(move || {
+                client::app_run(
+                    tx,
+                    authorization::Principal {
+                        id: Uuid::new_v4().to_string(),
+                        noun: "ai".to_string(),
+                        scope: "actor".to_string(),
+                    },
+                )
+            })
+        },
+        thread::spawn({
+            let tx = tx.clone();
+            move || {
+                client::app_run(
+                    tx,
+                    authorization::Principal {
+                        id: Uuid::new_v4().to_string(),
+                        noun: "authority".to_string(),
+                        scope: "actor".to_string(),
+                    },
+                )
+            }
+        }),
     ];
 
     for handle in handles {
@@ -31,14 +52,15 @@ struct ConnectionTx(mpsc::Sender<Protocol>);
 #[derive(Component)]
 struct ConnectionRx(Mutex<mpsc::Receiver<Protocol>>);
 
-struct Handshake {
-    identity: (),
+struct NetworkHandshake {
+    principal: authorization::Principal,
     tx: mpsc::Sender<Protocol>,
 }
 
 #[derive(Debug)]
 enum Protocol {
     Connected(mpsc::Sender<Protocol>),
+    Disconnected,
     Ping,
     Pong,
 }

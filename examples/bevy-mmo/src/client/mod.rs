@@ -5,9 +5,9 @@ use std::{
 
 use bevy::{log::LogPlugin, prelude::*};
 
-use crate::{ConnectionRx, ConnectionTx, Handshake, Protocol};
+use crate::{ConnectionRx, ConnectionTx, NetworkHandshake, Protocol};
 
-pub fn app_run(tx: mpsc::Sender<Handshake>, role: Role) {
+pub fn app_run(tx: mpsc::Sender<NetworkHandshake>, principal: authorization::Principal) {
     let mut app = App::new();
 
     app.add_plugins((
@@ -17,27 +17,40 @@ pub fn app_run(tx: mpsc::Sender<Handshake>, role: Role) {
         },
     ))
     .insert_resource(NetworkConnector(tx))
-    .add_systems(Startup, connect)
-    .add_systems(Update, (connected, keep_alive, protocol));
+    .insert_resource(Principal(principal))
+    .add_systems(Update, (connect, connected, keep_alive, protocol));
 
     app.run();
 }
 
 #[derive(Resource)]
-struct NetworkConnector(mpsc::Sender<Handshake>);
 
-#[derive(Debug, Resource)]
-pub enum Role {
-    Ai,
-    Authority,
+struct Principal(authorization::Principal);
+
+#[derive(Resource)]
+struct NetworkConnector(mpsc::Sender<NetworkHandshake>);
+
+/// Initiate connection to replication.
+fn connect(
+    mut commands: Commands,
+    connector: Res<NetworkConnector>,
+    principal: Res<Principal>,
+    query: Query<(), With<ConnectionRx>>,
+) {
+    if query.iter().count() == 0 {
+        let (tx, rx) = mpsc::channel();
+        connector
+            .0
+            .send(NetworkHandshake {
+                principal: principal.0.clone(),
+                tx,
+            })
+            .unwrap();
+        commands.spawn(ConnectionRx(Mutex::new(rx)));
+    }
 }
 
-fn connect(mut commands: Commands, connector: Res<NetworkConnector>) {
-    let (tx, rx) = mpsc::channel();
-    connector.0.send(Handshake { identity: (), tx }).unwrap();
-    commands.spawn(ConnectionRx(Mutex::new(rx)));
-}
-
+/// Complete connection to replication.
 fn connected(mut commands: Commands, query: Query<(Entity, &ConnectionRx), Without<ConnectionTx>>) {
     query.for_each(|(entity, rx)| {
         match rx.0.lock().expect("poisoned").try_recv() {
@@ -67,11 +80,19 @@ fn connected(mut commands: Commands, query: Query<(Entity, &ConnectionRx), Witho
 #[derive(Component)]
 struct KeepAliveTimer(Timer);
 
-fn keep_alive(time: Res<Time>, mut query: Query<(&mut KeepAliveTimer, &ConnectionTx)>) {
-    query.for_each_mut(|(mut timer, tx)| {
-        if timer.0.tick(time.delta()).just_finished() {
-            tx.0.send(Protocol::Ping).unwrap();
+/// Periodically send keep alive packet.
+fn keep_alive(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &ConnectionTx, &mut KeepAliveTimer)>,
+) {
+    query.for_each_mut(|(entity, tx, mut timer)| {
+        if timer.0.tick(time.delta()).finished() {
             timer.0.reset();
+            if let Err(error) = tx.0.send(Protocol::Ping) {
+                commands.entity(entity).despawn();
+                warn!("disconnected\n  error: {error:?}");
+            }
         }
     });
 }
@@ -82,7 +103,7 @@ fn protocol(query: Query<(&ConnectionTx, &ConnectionRx)>) {
             .expect("poisoned")
             .try_iter()
             .for_each(|protocol| {
-                info!("protocol received {protocol:?}");
+                trace!("protocol received {protocol:?}");
             });
     });
 }
