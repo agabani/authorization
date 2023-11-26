@@ -1,4 +1,7 @@
-use std::sync::{mpsc, Mutex};
+use std::sync::{
+    mpsc::{self, TryRecvError},
+    Mutex,
+};
 
 use bevy::prelude::*;
 
@@ -8,9 +11,16 @@ pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (initiate_connection, initialize_connection));
+        app.add_systems(Update, (initiate_connection, initialize_connection))
+            .add_systems(Update, read_connection);
     }
 }
+
+/*
+ * ============================================================================
+ * Create connections
+ * ============================================================================
+ */
 
 fn initiate_connection(
     mut commands: Commands,
@@ -37,6 +47,9 @@ fn initialize_connection(
                 commands.entity(entity).insert(ConnectionTx(tx));
                 info!("connected");
             }
+            Ok(_) => {
+                panic!("unexpected packet");
+            }
             Err(mpsc::TryRecvError::Disconnected) => {
                 commands.entity(entity).despawn();
                 warn!("disconnected");
@@ -44,4 +57,34 @@ fn initialize_connection(
             Err(mpsc::TryRecvError::Empty) => {}
         },
     );
+}
+
+/*
+ * ============================================================================
+ * Read connection
+ * ============================================================================
+ */
+
+fn read_connection(
+    mut commands: Commands,
+    query: Query<(Entity, &ConnectionRx), With<ConnectionTx>>,
+) {
+    query.for_each(|(entity, rx)| {
+        let rx = rx.0.lock().expect("poisoned");
+        loop {
+            match rx.try_recv() {
+                Ok(_protocol) => {}
+                Err(error) => {
+                    match error {
+                        TryRecvError::Empty => {}
+                        TryRecvError::Disconnected => {
+                            commands.entity(entity).despawn();
+                            warn!("disconnected");
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+    });
 }
