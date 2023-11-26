@@ -68,6 +68,12 @@ where
     }
 }
 
+pub enum AuthorizationError {
+    Context,
+    Denied,
+    Disconnected,
+}
+
 #[derive(Component)]
 pub struct AuthorizationService;
 
@@ -78,32 +84,36 @@ impl AuthorizationService {
         unauthorized: Unauthorized<T>,
         identifiers: &Query<&Identifier>,
         tx: &ConnectionTx,
-    ) -> Option<AuthorizationTask<T>>
+    ) -> Result<AuthorizationTask<T>, AuthorizationError>
     where
         T: IntoContext + Clone + Send + 'static,
     {
-        T::into_context(&unauthorized, identifiers).map(|context| {
-            let (tx1, rx) = mpsc::channel();
-            tx.0.send(Protocol::Authorize(context, tx1));
-            AuthorizationTask {
-                result: None,
-                rx,
-                marker: PhantomData,
-            }
+        let context =
+            T::into_context(&unauthorized, identifiers).ok_or(AuthorizationError::Context)?;
+
+        let (result_tx, result_rx) = mpsc::channel();
+
+        tx.0.send(Protocol::Authorize(context, result_tx))
+            .map_err(|_| AuthorizationError::Disconnected)?;
+
+        Ok(AuthorizationTask {
+            result: None,
+            rx: result_rx,
+            marker: PhantomData,
         })
     }
 }
 
 #[derive(Component)]
 pub struct AuthorizationTask<T> {
-    result: Option<Result<authorization::Context, ()>>,
-    rx: mpsc::Receiver<Result<authorization::Context, ()>>,
+    result: Option<Result<authorization::Context, AuthorizationError>>,
+    rx: mpsc::Receiver<Result<authorization::Context, AuthorizationError>>,
     marker: PhantomData<T>,
 }
 
 impl<T> AuthorizationTask<T> {
     /// Polls a future just once and returns an [`Option`] with the result.
-    pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, ()>> {
+    pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, AuthorizationError>> {
         if self.result.is_some() {
             return &self.result;
         }
@@ -158,7 +168,7 @@ pub enum Protocol {
     Pong,
     Authorize(
         authorization::Context,
-        mpsc::Sender<Result<authorization::Context, ()>>,
+        mpsc::Sender<Result<authorization::Context, AuthorizationError>>,
     ),
 }
 

@@ -1,3 +1,6 @@
+mod artificial_intelligence;
+mod player;
+
 use std::{
     sync::{mpsc, Mutex},
     time::Duration,
@@ -6,6 +9,8 @@ use std::{
 use bevy::{log::LogPlugin, prelude::*};
 
 use crate::core::{ConnectionRx, ConnectionTx, NetworkHandshake, Protocol};
+
+use self::{artificial_intelligence::ArtificialIntelligencePlugin, player::PlayerPlugin};
 
 pub fn app_run(tx: mpsc::Sender<NetworkHandshake>, principal: authorization::Principal) {
     let mut app = App::new();
@@ -16,6 +21,7 @@ pub fn app_run(tx: mpsc::Sender<NetworkHandshake>, principal: authorization::Pri
             ..Default::default()
         },
     ))
+    .add_plugins((ArtificialIntelligencePlugin, PlayerPlugin))
     .insert_resource(NetworkConnector(tx))
     .insert_resource(Principal(principal))
     .add_systems(Update, (connect, connected, keep_alive, protocol));
