@@ -11,8 +11,15 @@ pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (initiate_connection, initialize_connection))
-            .add_systems(Update, read_connection);
+        app.add_systems(
+            Update,
+            (
+                initiate_connection,
+                initialize_connection,
+                keep_connection_alive,
+                read_connection,
+            ),
+        );
     }
 }
 
@@ -44,7 +51,10 @@ fn initialize_connection(
     query.for_each(
         |(entity, rx)| match rx.0.lock().expect("poisoned").try_recv() {
             Ok(Protocol::Connected(tx)) => {
-                commands.entity(entity).insert(ConnectionTx(tx));
+                commands
+                    .entity(entity)
+                    .insert(ConnectionTx(tx))
+                    .insert(KeepAlive(Timer::from_seconds(1.0, TimerMode::Repeating)));
                 info!("connected");
             }
             Ok(_) => {
@@ -85,6 +95,32 @@ fn read_connection(
                     return;
                 }
             }
+        }
+    });
+}
+
+/*
+ * ============================================================================
+ * Keep alive connection
+ * ============================================================================
+ */
+
+#[derive(Component)]
+struct KeepAlive(Timer);
+
+fn keep_connection_alive(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &ConnectionTx, &mut KeepAlive)>,
+) {
+    query.for_each_mut(|(entity, tx, mut keep_alive)| {
+        if keep_alive.0.tick(time.delta()).finished() {
+            if let Ok(_) = tx.0.send(Protocol::Ping) {
+                keep_alive.0.reset();
+            } else {
+                commands.entity(entity).despawn();
+                warn!("disconnected");
+            };
         }
     });
 }

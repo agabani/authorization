@@ -33,4 +33,5 @@ pub struct ConnectionTx(pub mpsc::Sender<Protocol>);
 pub enum Protocol {
     Connected(mpsc::Sender<Protocol>),
     Disconnect,
+    Ping,
 }

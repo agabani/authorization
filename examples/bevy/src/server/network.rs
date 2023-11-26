@@ -1,4 +1,7 @@
-use std::sync::{mpsc, Mutex};
+use std::sync::{
+    mpsc::{self, TryRecvError},
+    Mutex,
+};
 
 use bevy::prelude::*;
 
@@ -10,7 +13,11 @@ impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (accept_connection, disconnect_timed_out_connections),
+            (
+                accept_connection,
+                disconnect_timed_out_connections,
+                read_connection,
+            ),
         );
     }
 }
@@ -28,13 +35,45 @@ fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
             commands.spawn((
                 ConnectionRx(Mutex::new(rx)),
                 ConnectionTx(handshake.tx),
-                ConnectionTimeout(Timer::from_seconds(10.0, TimerMode::Once)),
+                ConnectionTimeout(Timer::from_seconds(2.0, TimerMode::Once)),
             ));
             info!("connected");
         } else {
             warn!("disconnected");
         };
     }
+}
+
+/*
+ * ============================================================================
+ * Read connection
+ * ============================================================================
+ */
+
+fn read_connection(
+    mut commands: Commands,
+    mut query: Query<(Entity, &ConnectionRx, &mut ConnectionTimeout), With<ConnectionTx>>,
+) {
+    query.for_each_mut(|(entity, rx, mut timeout)| {
+        let rx = rx.0.lock().expect("poisoned");
+        loop {
+            match rx.try_recv() {
+                Ok(_protocol) => {
+                    timeout.0.reset();
+                }
+                Err(error) => {
+                    match error {
+                        TryRecvError::Empty => {}
+                        TryRecvError::Disconnected => {
+                            commands.entity(entity).despawn();
+                            warn!("disconnected");
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+    });
 }
 
 /*
