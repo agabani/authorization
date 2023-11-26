@@ -5,7 +5,10 @@ use std::sync::{
 
 use bevy::prelude::*;
 
-use crate::network::{ConnectionRx, ConnectionTx, ConnectionsRx, Protocol};
+use crate::{
+    identity::Principal,
+    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Protocol},
+};
 
 pub struct NetworkPlugin;
 
@@ -32,12 +35,13 @@ fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
     for handshake in connections.0.lock().expect("poisoned").try_iter() {
         let (tx, rx) = mpsc::channel();
         if let Ok(_) = handshake.tx.send(Protocol::Connected(tx)) {
+            info!("connected {:?}", handshake.principal);
             commands.spawn((
                 ConnectionRx(Mutex::new(rx)),
                 ConnectionTx(handshake.tx),
                 ConnectionTimeout(Timer::from_seconds(2.0, TimerMode::Once)),
+                Principal(handshake.principal),
             ));
-            info!("connected");
         } else {
             warn!("disconnected");
         };

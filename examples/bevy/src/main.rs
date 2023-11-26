@@ -1,6 +1,9 @@
 use std::{sync::mpsc, thread};
 
+use bevy::utils::Uuid;
+
 mod client;
+mod identity;
 mod network;
 mod server;
 
@@ -14,11 +17,29 @@ fn main() {
         }),
         thread::spawn({
             let connections_tx = connections_tx.clone();
-            move || client::run(connections_tx)
+            move || {
+                client::run(
+                    connections_tx,
+                    authorization::Principal {
+                        id: Uuid::new_v4().to_string(),
+                        noun: "artificial_intelligence".to_string(),
+                        scope: "actor".to_string(),
+                    },
+                )
+            }
         }),
         thread::spawn({
             let connections_tx = connections_tx.clone();
-            move || client::run(connections_tx)
+            move || {
+                client::run(
+                    connections_tx,
+                    authorization::Principal {
+                        id: Uuid::new_v4().to_string(),
+                        noun: "authority".to_string(),
+                        scope: "actor".to_string(),
+                    },
+                )
+            }
         }),
     ];
 

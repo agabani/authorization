@@ -4,11 +4,14 @@ use std::sync::mpsc;
 
 use bevy::prelude::*;
 
-use crate::network::{ConnectionsTx, Handshake};
+use crate::{
+    identity::Principal,
+    network::{ConnectionsTx, Handshake},
+};
 
 use self::network::NetworkPlugin;
 
-pub fn run(connections_tx: mpsc::Sender<Handshake>) {
+pub fn run(connections_tx: mpsc::Sender<Handshake>, principal: authorization::Principal) {
     let mut app = App::new();
 
     app.add_plugins((
@@ -20,7 +23,8 @@ pub fn run(connections_tx: mpsc::Sender<Handshake>) {
     ));
 
     app.add_plugins(NetworkPlugin)
-        .insert_resource(ConnectionsTx(connections_tx));
+        .insert_resource(ConnectionsTx(connections_tx))
+        .insert_resource(Principal(principal));
 
     app.run();
 }

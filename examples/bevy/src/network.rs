@@ -15,6 +15,7 @@ pub struct ConnectionsRx(pub Mutex<mpsc::Receiver<Handshake>>);
 pub struct ConnectionsTx(pub mpsc::Sender<Handshake>);
 
 pub struct Handshake {
+    pub principal: authorization::Principal,
     pub tx: mpsc::Sender<Protocol>,
 }
 

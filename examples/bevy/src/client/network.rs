@@ -5,7 +5,10 @@ use std::sync::{
 
 use bevy::prelude::*;
 
-use crate::network::{ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol};
+use crate::{
+    identity::Principal,
+    network::{ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol},
+};
 
 pub struct NetworkPlugin;
 
@@ -32,13 +35,17 @@ impl Plugin for NetworkPlugin {
 fn initiate_connection(
     mut commands: Commands,
     connections: Res<ConnectionsTx>,
+    principal: Res<Principal>,
     query: Query<&ConnectionRx>,
 ) {
     if query.is_empty() {
         let (tx, rx) = mpsc::channel();
         connections
             .0
-            .send(Handshake { tx })
+            .send(Handshake {
+                principal: principal.0.clone(),
+                tx,
+            })
             .expect("connections closed");
         commands.spawn(ConnectionRx(Mutex::new(rx)));
     }
@@ -46,6 +53,7 @@ fn initiate_connection(
 
 fn initialize_connection(
     mut commands: Commands,
+    principal: Res<Principal>,
     query: Query<(Entity, &ConnectionRx), Without<ConnectionTx>>,
 ) {
     query.for_each(
@@ -55,7 +63,7 @@ fn initialize_connection(
                     .entity(entity)
                     .insert(ConnectionTx(tx))
                     .insert(KeepAlive(Timer::from_seconds(1.0, TimerMode::Repeating)));
-                info!("connected");
+                info!("connected {:?}", principal.0);
             }
             Ok(_) => {
                 panic!("unexpected packet");
