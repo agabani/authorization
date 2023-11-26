@@ -83,7 +83,15 @@ fn read_connection(
         let rx = rx.0.lock().expect("poisoned");
         loop {
             match rx.try_recv() {
-                Ok(_protocol) => {}
+                Ok(protocol) => match protocol {
+                    Protocol::Connected(_) => panic!("unexpected packet"),
+                    Protocol::Disconnect => {
+                        commands.entity(entity).despawn();
+                        warn!("disconnected");
+                    }
+                    Protocol::Ping => panic!("unexpected packet"),
+                    Protocol::Pong => {}
+                },
                 Err(error) => {
                     match error {
                         TryRecvError::Empty => {}

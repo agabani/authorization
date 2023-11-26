@@ -52,14 +52,26 @@ fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
 
 fn read_connection(
     mut commands: Commands,
-    mut query: Query<(Entity, &ConnectionRx, &mut ConnectionTimeout), With<ConnectionTx>>,
+    mut query: Query<(Entity, &ConnectionRx, &ConnectionTx, &mut ConnectionTimeout)>,
 ) {
-    query.for_each_mut(|(entity, rx, mut timeout)| {
+    query.for_each_mut(|(entity, rx, tx, mut timeout)| {
         let rx = rx.0.lock().expect("poisoned");
         loop {
             match rx.try_recv() {
-                Ok(_protocol) => {
+                Ok(protocol) => {
                     timeout.0.reset();
+
+                    match protocol {
+                        Protocol::Connected(_) => panic!("unexpected packet"),
+                        Protocol::Disconnect => todo!("disconnect"),
+                        Protocol::Ping => {
+                            if let Err(_) = tx.0.send(Protocol::Pong) {
+                                warn!("disconnected");
+                                commands.entity(entity).despawn();
+                            };
+                        }
+                        Protocol::Pong => panic!("unexpected packet"),
+                    }
                 }
                 Err(error) => {
                     match error {

@@ -34,4 +34,5 @@ pub enum Protocol {
     Connected(mpsc::Sender<Protocol>),
     Disconnect,
     Ping,
+    Pong,
 }
