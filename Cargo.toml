@@ -1,4 +1,4 @@
 [workspace]
-members = ["authorization", "authorization-*", "examples/*"]
-default-members = ["authorization", "authorization-*"]
+members = ["authorization", "examples/*"]
+default-members = ["authorization"]
 resolver = "2"

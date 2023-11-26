@@ -1,8 +1,0 @@
-[package]
-name = "authorization-bevy"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-authorization = { version = "^0.1", path = "../authorization" }
-bevy = "^0.12"
