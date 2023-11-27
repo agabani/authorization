@@ -21,6 +21,7 @@ impl Plugin for NetworkPlugin {
                 initialize_connection,
                 keep_connection_alive,
                 read_connection,
+                replicate,
             ),
         );
     }
@@ -109,6 +110,7 @@ fn read_connection(
                     Protocol::Broadcast(context) => {
                         commands.spawn(Broadcast { context });
                     }
+                    Protocol::Replicate => panic!("unexpected packet"),
                 },
                 Err(error) => {
                     match error {
@@ -148,5 +150,20 @@ fn keep_connection_alive(
                 warn!("disconnected");
             };
         }
+    });
+}
+
+/*
+ * ============================================================================
+ * Replicate
+ * ============================================================================
+ */
+
+fn replicate(mut commands: Commands, query: Query<(Entity, &ConnectionTx), Added<ConnectionTx>>) {
+    query.for_each(|(entity, tx)| {
+        if let Err(_) = tx.0.send(Protocol::Replicate) {
+            commands.entity(entity).despawn();
+            warn!("disconnected");
+        };
     });
 }

@@ -41,6 +41,7 @@ pub enum Protocol {
         mpsc::Sender<Result<authorization::Context, ResponseError>>,
     ),
     Broadcast(authorization::Context),
+    Replicate,
 }
 
 /*

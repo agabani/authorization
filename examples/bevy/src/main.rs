@@ -1,4 +1,4 @@
-use std::{sync::mpsc, thread};
+use std::{sync::mpsc, thread, time::Duration};
 
 use bevy::utils::Uuid;
 
@@ -46,6 +46,20 @@ fn main() {
                     authorization::Principal {
                         id: Uuid::new_v4().to_string(),
                         noun: "authority".to_string(),
+                        scope: "actor".to_string(),
+                    },
+                )
+            }
+        }),
+        thread::spawn({
+            let connections_tx = connections_tx.clone();
+            thread::sleep(Duration::from_secs(5));
+            move || {
+                client::run(
+                    connections_tx,
+                    authorization::Principal {
+                        id: Uuid::new_v4().to_string(),
+                        noun: "observer".to_string(),
                         scope: "actor".to_string(),
                     },
                 )

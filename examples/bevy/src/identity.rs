@@ -19,6 +19,16 @@ impl From<authorization::Resource> for Identifier {
     }
 }
 
+impl From<Identifier> for authorization::Resource {
+    fn from(value: Identifier) -> Self {
+        authorization::Resource {
+            id: value.id,
+            noun: value.noun,
+            scope: value.scope,
+        }
+    }
+}
+
 #[derive(Component, Resource)]
 pub struct Principal(pub authorization::Principal);
 
