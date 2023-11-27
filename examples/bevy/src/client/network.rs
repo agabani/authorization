@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request},
+    network::{Broadcast, ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request},
 };
 
 pub struct NetworkPlugin;
@@ -105,6 +105,9 @@ fn read_connection(
                             panic!("unexpected packet");
                         }
                         commands.spawn(Request { context, tx });
+                    }
+                    Protocol::Broadcast(context) => {
+                        commands.spawn(Broadcast { context });
                     }
                 },
                 Err(error) => {

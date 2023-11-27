@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, ResponseError},
+    network::{Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, ResponseError},
 };
 
 pub struct NetworkPlugin;
@@ -64,6 +64,7 @@ fn read_connection(
         &mut ConnectionTimeout,
     )>,
     authority: Query<(Entity, &ConnectionTx, &Principal)>,
+    broadcast: Query<(Entity, &ConnectionTx)>,
 ) {
     query.for_each_mut(|(entity, principal, rx, tx, mut timeout)| {
         let rx = rx.0.lock().expect("poisoned");
@@ -77,8 +78,8 @@ fn read_connection(
                         Protocol::Disconnect => todo!("disconnect"),
                         Protocol::Ping => {
                             if let Err(_) = tx.0.send(Protocol::Pong) {
-                                warn!("disconnected");
                                 commands.entity(entity).despawn();
+                                warn!("disconnected");
                             };
                         }
                         Protocol::Pong => panic!("unexpected packet"),
@@ -114,6 +115,20 @@ fn read_connection(
                                     warn!("failed to send error");
                                 }
                             }
+                        }
+                        Protocol::Broadcast(context) => {
+                            if principal.0.noun != "authority" {
+                                warn!("permission");
+                            }
+
+                            broadcast.for_each(|(entity, tx)| {
+                                if let Err(_) = tx.0.send(Protocol::Broadcast(context.clone())) {
+                                    commands.entity(entity).despawn();
+                                    warn!("disconnected");
+                                };
+                            });
+
+                            commands.spawn(Broadcast { context });
                         }
                     }
                 }

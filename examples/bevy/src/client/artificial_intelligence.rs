@@ -3,8 +3,8 @@ use std::sync::{mpsc, Mutex};
 use bevy::prelude::*;
 
 use crate::{
-    identity::{Identifier, Principal},
-    network::{ConnectionTx, Protocol, Response, ResponseError},
+    identity::Principal,
+    network::{ConnectionTx, Protocol, Response},
     player::Player,
 };
 
@@ -12,11 +12,11 @@ pub struct ArtificialIntelligencePlugin;
 
 impl Plugin for ArtificialIntelligencePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (initiate_spawn_player, initialize_spawn_player));
+        app.add_systems(Update, try_spawn_player);
     }
 }
 
-fn initiate_spawn_player(
+fn try_spawn_player(
     mut commands: Commands,
     principal: Res<Principal>,
     connection: Query<(Entity, &ConnectionTx)>,
@@ -50,32 +50,6 @@ fn initiate_spawn_player(
             };
 
             commands.spawn(Response::new(Mutex::new(rx)));
-        };
-    });
-}
-
-fn initialize_spawn_player(mut commands: Commands, mut responses: Query<(Entity, &mut Response)>) {
-    responses.for_each_mut(|(entity, mut request)| {
-        if let Some(result) = request.poll_once() {
-            match result {
-                Ok(context) => {
-                    commands
-                        .entity(entity)
-                        .remove::<Response>()
-                        .insert(Player)
-                        .insert(Identifier::from(context.resource.clone()));
-
-                    info!("spawned player {:?}", context.resource);
-                }
-                Err(error) => {
-                    match error {
-                        ResponseError::Denied => warn!("denied"),
-                        ResponseError::Disconnected => warn!("disconnected"),
-                        ResponseError::NoAuthorityAvailable => warn!("no authority available"),
-                    }
-                    commands.entity(entity).despawn();
-                }
-            }
         };
     });
 }

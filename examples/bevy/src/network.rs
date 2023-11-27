@@ -40,6 +40,18 @@ pub enum Protocol {
         authorization::Context,
         mpsc::Sender<Result<authorization::Context, ResponseError>>,
     ),
+    Broadcast(authorization::Context),
+}
+
+/*
+ * ============================================================================
+ * Broadcast
+ * ============================================================================
+ */
+
+#[derive(Component)]
+pub struct Broadcast {
+    pub context: authorization::Context,
 }
 
 /*

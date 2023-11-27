@@ -1,6 +1,6 @@
-pub use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 
-#[derive(Component)]
+#[derive(Clone, Component, PartialEq, Eq, Hash)]
 pub struct Identifier {
     pub id: String,
 
@@ -21,3 +21,6 @@ impl From<authorization::Resource> for Identifier {
 
 #[derive(Component, Resource)]
 pub struct Principal(pub authorization::Principal);
+
+#[derive(Resource)]
+pub struct Identifiers(pub HashMap<Identifier, Entity>);
