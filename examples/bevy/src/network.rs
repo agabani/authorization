@@ -1,4 +1,4 @@
-use std::sync::{mpsc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 
 use bevy::ecs::{component::Component, system::Resource};
 
@@ -9,7 +9,7 @@ use bevy::ecs::{component::Component, system::Resource};
  */
 
 #[derive(Resource)]
-pub struct ConnectionsRx(pub Mutex<mpsc::Receiver<Handshake>>);
+pub struct ConnectionsRx(pub Arc<Mutex<mpsc::Receiver<Handshake>>>);
 
 #[derive(Resource)]
 pub struct ConnectionsTx(pub mpsc::Sender<Handshake>);
