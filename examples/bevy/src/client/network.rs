@@ -3,11 +3,11 @@ use std::sync::{
     Mutex,
 };
 
-use bevy::{prelude::*, utils::Uuid};
+use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol},
+    network::{ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request},
 };
 
 pub struct NetworkPlugin;
@@ -100,15 +100,11 @@ fn read_connection(
                     }
                     Protocol::Ping => panic!("unexpected packet"),
                     Protocol::Pong => {}
-                    Protocol::Request(mut context, tx) => {
+                    Protocol::Request(context, tx) => {
                         if principal.0.noun != "authority" {
                             panic!("unexpected packet");
                         }
-
-                        context.resource.id = Uuid::new_v4().to_string();
-                        if let Err(_) = tx.send(Ok(context)) {
-                            warn!("failed to send response");
-                        };
+                        commands.spawn(Request { context, tx });
                     }
                 },
                 Err(error) => {
