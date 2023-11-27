@@ -3,7 +3,7 @@ use std::sync::{
     Mutex,
 };
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::Uuid};
 
 use crate::{
     identity::Principal,
@@ -85,6 +85,7 @@ fn initialize_connection(
 
 fn read_connection(
     mut commands: Commands,
+    principal: Res<Principal>,
     query: Query<(Entity, &ConnectionRx), With<ConnectionTx>>,
 ) {
     query.for_each(|(entity, rx)| {
@@ -99,6 +100,16 @@ fn read_connection(
                     }
                     Protocol::Ping => panic!("unexpected packet"),
                     Protocol::Pong => {}
+                    Protocol::Request(mut context, tx) => {
+                        if principal.0.noun != "authority" {
+                            panic!("unexpected packet");
+                        }
+
+                        context.resource.id = Uuid::new_v4().to_string();
+                        if let Err(_) = tx.send(Ok(context)) {
+                            warn!("failed to send response");
+                        };
+                    }
                 },
                 Err(error) => {
                     match error {

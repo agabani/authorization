@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Protocol},
+    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, RequestError},
 };
 
 pub struct NetworkPlugin;
@@ -56,9 +56,16 @@ fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
 
 fn read_connection(
     mut commands: Commands,
-    mut query: Query<(Entity, &ConnectionRx, &ConnectionTx, &mut ConnectionTimeout)>,
+    mut query: Query<(
+        Entity,
+        &Principal,
+        &ConnectionRx,
+        &ConnectionTx,
+        &mut ConnectionTimeout,
+    )>,
+    authority: Query<(Entity, &ConnectionTx, &Principal)>,
 ) {
-    query.for_each_mut(|(entity, rx, tx, mut timeout)| {
+    query.for_each_mut(|(entity, principal, rx, tx, mut timeout)| {
         let rx = rx.0.lock().expect("poisoned");
         loop {
             match rx.try_recv() {
@@ -75,6 +82,39 @@ fn read_connection(
                             };
                         }
                         Protocol::Pong => panic!("unexpected packet"),
+                        Protocol::Request(context, request_tx) => {
+                            if context.principal != principal.0 {
+                                warn!("impersonation");
+                            }
+
+                            if let Some((entity, tx, _)) = authority
+                                .iter()
+                                .find(|(_, _, principal)| principal.0.noun == "authority")
+                            {
+                                if let Err(_) =
+                                    tx.0.send(Protocol::Request(context, request_tx.clone()))
+                                {
+                                    error!("no authority available");
+
+                                    if let Err(_) =
+                                        request_tx.send(Err(RequestError::NoAuthorityAvailable))
+                                    {
+                                        warn!("failed to send error");
+                                    }
+
+                                    commands.entity(entity).despawn();
+                                    warn!("disconnected");
+                                };
+                            } else {
+                                error!("no authority available");
+
+                                if let Err(_) =
+                                    request_tx.send(Err(RequestError::NoAuthorityAvailable))
+                                {
+                                    warn!("failed to send error");
+                                }
+                            }
+                        }
                     }
                 }
                 Err(error) => {

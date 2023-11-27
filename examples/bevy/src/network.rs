@@ -36,4 +36,50 @@ pub enum Protocol {
     Disconnect,
     Ping,
     Pong,
+    Request(
+        authorization::Context,
+        mpsc::Sender<Result<authorization::Context, RequestError>>,
+    ),
+}
+
+/*
+ * ============================================================================
+ * Request
+ * ============================================================================
+ */
+
+#[derive(Component)]
+pub struct Request {
+    result: Option<Result<authorization::Context, RequestError>>,
+    rx: Mutex<mpsc::Receiver<Result<authorization::Context, RequestError>>>,
+}
+
+impl Request {
+    pub fn new(rx: Mutex<mpsc::Receiver<Result<authorization::Context, RequestError>>>) -> Self {
+        Self { result: None, rx }
+    }
+
+    pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, RequestError>> {
+        if self.result.is_some() {
+            return &self.result;
+        }
+
+        match self.rx.lock().expect("poisoned").try_recv() {
+            Ok(result) => {
+                self.result = Some(result);
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                self.result = Some(Err(RequestError::Disconnected));
+            }
+            Err(mpsc::TryRecvError::Empty) => {}
+        };
+
+        &self.result
+    }
+}
+
+pub enum RequestError {
+    Denied,
+    Disconnected,
+    NoAuthorityAvailable,
 }

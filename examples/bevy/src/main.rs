@@ -5,6 +5,7 @@ use bevy::utils::Uuid;
 mod client;
 mod identity;
 mod network;
+mod player;
 mod server;
 
 fn main() {
