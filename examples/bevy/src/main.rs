@@ -2,6 +2,8 @@ use std::{sync::mpsc, thread, time::Duration};
 
 use bevy::utils::Uuid;
 
+mod artificial_intelligence;
+mod authority;
 mod client;
 mod identity;
 mod network;

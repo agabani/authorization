@@ -1,5 +1,3 @@
-mod artificial_intelligence;
-mod authority;
 mod network;
 
 use std::sync::mpsc;
@@ -7,15 +5,14 @@ use std::sync::mpsc;
 use bevy::prelude::*;
 
 use crate::{
+    artificial_intelligence::ArtificialIntelligencePlugin,
+    authority::AuthorityPlugin,
     identity::{Identifiers, Principal},
     network::{ConnectionsTx, Handshake},
     player::PlayerPlugin,
 };
 
-use self::{
-    artificial_intelligence::ArtificialIntelligencePlugin, authority::AuthorityPlugin,
-    network::NetworkPlugin,
-};
+use self::network::NetworkPlugin;
 
 pub fn run(connections_tx: mpsc::Sender<Handshake>, principal: authorization::Principal) {
     let mut app = App::new();
