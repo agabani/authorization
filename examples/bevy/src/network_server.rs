@@ -12,9 +12,9 @@ use crate::{
     },
 };
 
-pub struct NetworkPlugin;
+pub struct NetworkServerPlugin;
 
-impl Plugin for NetworkPlugin {
+impl Plugin for NetworkServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,

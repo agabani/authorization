@@ -1,5 +1,3 @@
-mod network;
-
 use std::sync::{mpsc, Mutex};
 
 use bevy::prelude::*;
@@ -7,10 +5,9 @@ use bevy::prelude::*;
 use crate::{
     identity::{Identifiers, Principal},
     network::{ConnectionsRx, Handshake},
+    network_server::NetworkServerPlugin,
     player::PlayerPlugin,
 };
-
-use self::network::NetworkPlugin;
 
 pub fn run(connections_rx: mpsc::Receiver<Handshake>, principal: authorization::Principal) {
     let mut app = App::new();
@@ -23,7 +20,7 @@ pub fn run(connections_rx: mpsc::Receiver<Handshake>, principal: authorization::
         },
     ));
 
-    app.add_plugins(NetworkPlugin)
+    app.add_plugins(NetworkServerPlugin)
         .insert_resource(ConnectionsRx(Mutex::new(connections_rx)))
         .insert_resource(Principal(principal));
 

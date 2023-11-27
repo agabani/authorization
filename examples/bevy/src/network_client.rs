@@ -10,9 +10,9 @@ use crate::{
     network::{Broadcast, ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request},
 };
 
-pub struct NetworkPlugin;
+pub struct NetworkClientPlugin;
 
-impl Plugin for NetworkPlugin {
+impl Plugin for NetworkClientPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,

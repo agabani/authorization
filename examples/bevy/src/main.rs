@@ -7,6 +7,8 @@ mod authority;
 mod client;
 mod identity;
 mod network;
+mod network_client;
+mod network_server;
 mod player;
 mod server;
 
