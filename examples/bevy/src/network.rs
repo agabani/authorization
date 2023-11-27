@@ -1,6 +1,6 @@
 use std::sync::{mpsc, Arc, Mutex};
 
-use bevy::ecs::{component::Component, system::Resource};
+use bevy::prelude::*;
 
 /*
  * ============================================================================
@@ -115,4 +115,24 @@ pub enum ResponseError {
     Denied,
     Disconnected,
     NoAuthorityAvailable,
+}
+
+/*
+ * ============================================================================
+ * Send
+ * ============================================================================
+ */
+
+pub fn send(
+    commands: &mut Commands,
+    entity: Entity,
+    tx: &ConnectionTx,
+    protocol: Protocol,
+) -> bool {
+    let result = tx.0.send(protocol);
+    if result.is_err() {
+        commands.entity(entity).despawn();
+        warn!("disconnected");
+    }
+    result.is_ok()
 }

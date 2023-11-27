@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{ConnectionTx, Protocol, Response},
+    network::{send, ConnectionTx, Protocol, Response},
     player::Player,
 };
 
@@ -26,7 +26,7 @@ fn try_spawn_player(
     let count = query.iter().count() + responses.iter().count();
 
     (count..2).for_each(|_| {
-        if let Ok((entity, connection)) = connection.get_single() {
+        if let Ok((entity, tx)) = connection.get_single() {
             let context = authorization::Context {
                 action: authorization::Action {
                     noun: "player".to_string(),
@@ -42,14 +42,12 @@ fn try_spawn_player(
                 },
             };
 
-            let (tx, rx) = mpsc::channel();
+            let (response_tx, rx) = mpsc::channel();
+            let protocol = Protocol::Request(context, response_tx);
 
-            if let Err(_) = connection.0.send(Protocol::Request(context, tx)) {
-                commands.entity(entity).despawn();
-                warn!("disconnected");
-            };
-
-            commands.spawn(Response::new(Mutex::new(rx)));
+            if send(&mut commands, entity, &tx, protocol) {
+                commands.spawn(Response::new(Mutex::new(rx)));
+            }
         };
     });
 }

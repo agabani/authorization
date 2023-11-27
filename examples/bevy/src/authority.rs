@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::network::{ConnectionTx, Request};
+use crate::network::{send, ConnectionTx, Protocol, Request};
 
 pub struct AuthorityPlugin;
 
@@ -22,12 +22,8 @@ fn handle_request(
         context.resource.id = Uuid::new_v4().to_string();
 
         tx.for_each(|(entity, tx)| {
-            if let Err(_) =
-                tx.0.send(crate::network::Protocol::Broadcast(context.clone()))
-            {
-                commands.entity(entity).despawn();
-                warn!("disconnected");
-            }
+            let protocol = Protocol::Broadcast(context.clone());
+            send(&mut commands, entity, tx, protocol);
         });
 
         if let Err(_) = request.tx.send(Ok(context)) {

@@ -8,7 +8,8 @@ use bevy::prelude::*;
 use crate::{
     identity::Principal,
     network::{
-        Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, Replication, ResponseError,
+        send, Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, Replication,
+        ResponseError,
     },
 };
 
@@ -79,10 +80,8 @@ fn read_connection(
                         Protocol::Connected(_) => panic!("unexpected packet"),
                         Protocol::Disconnect => todo!("disconnect"),
                         Protocol::Ping => {
-                            if let Err(_) = tx.0.send(Protocol::Pong) {
-                                commands.entity(entity).despawn();
-                                warn!("disconnected");
-                            };
+                            let protocol = Protocol::Pong;
+                            send(&mut commands, entity, tx, protocol);
                         }
                         Protocol::Pong => panic!("unexpected packet"),
                         Protocol::Request(context, response) => {
@@ -125,10 +124,8 @@ fn read_connection(
                             }
 
                             broadcast.for_each(|(entity, tx)| {
-                                if let Err(_) = tx.0.send(Protocol::Broadcast(context.clone())) {
-                                    commands.entity(entity).despawn();
-                                    warn!("disconnected");
-                                };
+                                let protocol = Protocol::Broadcast(context.clone());
+                                send(&mut commands, entity, tx, protocol);
                             });
 
                             commands.spawn(Broadcast { context });

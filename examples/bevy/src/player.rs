@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::{Identifier, Identifiers, Principal},
-    network::{Broadcast, ConnectionTx, Protocol, Replication, Response, ResponseError},
+    network::{send, Broadcast, ConnectionTx, Protocol, Replication, Response, ResponseError},
 };
 
 pub struct PlayerPlugin;
@@ -60,9 +60,8 @@ fn replication(
                 resource: identifier.clone().into(),
             };
 
-            if let Err(_) = tx.0.send(Protocol::Broadcast(context)) {
-                commands.entity(entity).despawn();
-                warn!("disconnected");
+            let protocol = Protocol::Broadcast(context);
+            if !send(&mut commands, entity, tx, protocol) {
                 return;
             }
         }

@@ -7,7 +7,9 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{Broadcast, ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request},
+    network::{
+        send, Broadcast, ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request,
+    },
 };
 
 pub struct NetworkClientPlugin;
@@ -143,12 +145,8 @@ fn keep_connection_alive(
 ) {
     query.for_each_mut(|(entity, tx, mut keep_alive)| {
         if keep_alive.0.tick(time.delta()).finished() {
-            if let Ok(_) = tx.0.send(Protocol::Ping) {
-                keep_alive.0.reset();
-            } else {
-                commands.entity(entity).despawn();
-                warn!("disconnected");
-            };
+            let protocol = Protocol::Ping;
+            send(&mut commands, entity, tx, protocol);
         }
     });
 }
@@ -161,9 +159,7 @@ fn keep_connection_alive(
 
 fn replicate(mut commands: Commands, query: Query<(Entity, &ConnectionTx), Added<ConnectionTx>>) {
     query.for_each(|(entity, tx)| {
-        if let Err(_) = tx.0.send(Protocol::Replicate) {
-            commands.entity(entity).despawn();
-            warn!("disconnected");
-        };
+        let protocol = Protocol::Replicate;
+        send(&mut commands, entity, tx, protocol);
     });
 }
