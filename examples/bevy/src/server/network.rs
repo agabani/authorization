@@ -6,8 +6,10 @@ use std::sync::{
 use bevy::prelude::*;
 
 use crate::{
-    identity::{Identifier, Principal},
-    network::{Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, ResponseError},
+    identity::Principal,
+    network::{
+        Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, Replication, ResponseError,
+    },
 };
 
 pub struct NetworkPlugin;
@@ -65,7 +67,6 @@ fn read_connection(
     )>,
     authority: Query<(Entity, &ConnectionTx, &Principal)>,
     broadcast: Query<(Entity, &ConnectionTx)>,
-    identifiers: Query<&Identifier>,
 ) {
     query.for_each_mut(|(entity, principal, rx, tx, mut timeout)| {
         let rx = rx.0.lock().expect("poisoned");
@@ -132,27 +133,7 @@ fn read_connection(
                             commands.spawn(Broadcast { context });
                         }
                         Protocol::Replicate => {
-                            identifiers.for_each(|identifier| {
-                                let context = authorization::Context {
-                                    action: authorization::Action {
-                                        noun: "".to_string(),
-                                        scope: "".to_string(),
-                                        verb: "".to_string(),
-                                    },
-                                    data: Default::default(),
-                                    principal: authorization::Principal {
-                                        id: "".to_string(),
-                                        noun: "".to_string(),
-                                        scope: "".to_string(),
-                                    },
-                                    resource: identifier.clone().into(),
-                                };
-
-                                if let Err(_) = tx.0.send(Protocol::Broadcast(context)) {
-                                    commands.entity(entity).despawn();
-                                    warn!("disconnected");
-                                }
-                            });
+                            commands.entity(entity).insert(Replication);
                         }
                     }
                 }

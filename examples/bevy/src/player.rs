@@ -2,14 +2,14 @@ use bevy::prelude::*;
 
 use crate::{
     identity::{Identifier, Identifiers, Principal},
-    network::{Broadcast, Response, ResponseError},
+    network::{Broadcast, ConnectionTx, Protocol, Replication, Response, ResponseError},
 };
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (broadcast, response));
+        app.add_systems(Update, (broadcast, replication, response));
     }
 }
 
@@ -35,6 +35,36 @@ fn broadcast(
                 "[broadcast] spawned player {:?} {:?}",
                 principal.0, broadcast.context.resource
             );
+        }
+    });
+}
+
+fn replication(
+    mut commands: Commands,
+    principal: Res<Principal>,
+    connections: Query<(Entity, &ConnectionTx), With<Replication>>,
+    query: Query<&Identifier, With<Player>>,
+) {
+    connections.for_each(|(entity, tx)| {
+        commands.entity(entity).remove::<Replication>();
+
+        for identifier in &query {
+            let context = authorization::Context {
+                action: authorization::Action {
+                    noun: identifier.noun.clone(),
+                    scope: identifier.scope.clone(),
+                    verb: "spawn".to_string(),
+                },
+                data: Default::default(),
+                principal: principal.0.clone(),
+                resource: identifier.clone().into(),
+            };
+
+            if let Err(_) = tx.0.send(Protocol::Broadcast(context)) {
+                commands.entity(entity).despawn();
+                warn!("disconnected");
+                return;
+            }
         }
     });
 }
