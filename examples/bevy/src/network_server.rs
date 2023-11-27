@@ -93,25 +93,26 @@ fn read_connection(
                                 .iter()
                                 .find(|(_, _, principal)| principal.0.noun == "authority")
                             {
-                                if let Err(_) =
-                                    tx.0.send(Protocol::Request(context, response.clone()))
-                                {
-                                    error!("no authority available");
+                                let protocol = Protocol::Request(context, response.clone());
+                                if !send(&mut commands, entity, tx, protocol) {
+                                    error!("failed to send to authority");
 
-                                    if let Err(_) =
-                                        response.send(Err(ResponseError::NoAuthorityAvailable))
+                                    if response
+                                        .send(Err(ResponseError::NoAuthorityAvailable))
+                                        .is_err()
                                     {
                                         warn!("failed to send error");
                                     }
 
                                     commands.entity(entity).despawn();
                                     warn!("disconnected");
-                                };
+                                }
                             } else {
                                 error!("no authority available");
 
-                                if let Err(_) =
-                                    response.send(Err(ResponseError::NoAuthorityAvailable))
+                                if response
+                                    .send(Err(ResponseError::NoAuthorityAvailable))
+                                    .is_err()
                                 {
                                     warn!("failed to send error");
                                 }
