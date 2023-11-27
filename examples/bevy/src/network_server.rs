@@ -121,6 +121,7 @@ fn read_connection(
                         Protocol::Broadcast(context) => {
                             if principal.0.noun != "authority" {
                                 warn!("permission");
+                                return;
                             }
 
                             broadcast.for_each(|(entity, tx)| {
