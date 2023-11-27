@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::{Identifier, Principal},
-    network::{ConnectionTx, Protocol, Request, RequestError},
+    network::{ConnectionTx, Protocol, Response, ResponseError},
     player::Player,
 };
 
@@ -21,9 +21,9 @@ fn initiate_spawn_player(
     principal: Res<Principal>,
     connection: Query<(Entity, &ConnectionTx)>,
     query: Query<(), With<Player>>,
-    request: Query<(), With<Request>>,
+    responses: Query<(), With<Response>>,
 ) {
-    let count = query.iter().count() + request.iter().count();
+    let count = query.iter().count() + responses.iter().count();
 
     (count..2).for_each(|_| {
         if let Ok((entity, connection)) = connection.get_single() {
@@ -49,19 +49,19 @@ fn initiate_spawn_player(
                 warn!("disconnected");
             };
 
-            commands.spawn(Request::new(Mutex::new(rx)));
+            commands.spawn(Response::new(Mutex::new(rx)));
         };
     });
 }
 
-fn initialize_spawn_player(mut commands: Commands, mut requests: Query<(Entity, &mut Request)>) {
-    requests.for_each_mut(|(entity, mut request)| {
+fn initialize_spawn_player(mut commands: Commands, mut responses: Query<(Entity, &mut Response)>) {
+    responses.for_each_mut(|(entity, mut request)| {
         if let Some(result) = request.poll_once() {
             match result {
                 Ok(context) => {
                     commands
                         .entity(entity)
-                        .remove::<Request>()
+                        .remove::<Response>()
                         .insert(Player)
                         .insert(Identifier::from(context.resource.clone()));
 
@@ -69,9 +69,9 @@ fn initialize_spawn_player(mut commands: Commands, mut requests: Query<(Entity, 
                 }
                 Err(error) => {
                     match error {
-                        RequestError::Denied => warn!("denied"),
-                        RequestError::Disconnected => warn!("disconnected"),
-                        RequestError::NoAuthorityAvailable => warn!("no authority available"),
+                        ResponseError::Denied => warn!("denied"),
+                        ResponseError::Disconnected => warn!("disconnected"),
+                        ResponseError::NoAuthorityAvailable => warn!("no authority available"),
                     }
                     commands.entity(entity).despawn();
                 }

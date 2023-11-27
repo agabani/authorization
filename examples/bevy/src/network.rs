@@ -38,28 +38,28 @@ pub enum Protocol {
     Pong,
     Request(
         authorization::Context,
-        mpsc::Sender<Result<authorization::Context, RequestError>>,
+        mpsc::Sender<Result<authorization::Context, ResponseError>>,
     ),
 }
 
 /*
  * ============================================================================
- * Request
+ * Response
  * ============================================================================
  */
 
 #[derive(Component)]
-pub struct Request {
-    result: Option<Result<authorization::Context, RequestError>>,
-    rx: Mutex<mpsc::Receiver<Result<authorization::Context, RequestError>>>,
+pub struct Response {
+    result: Option<Result<authorization::Context, ResponseError>>,
+    rx: Mutex<mpsc::Receiver<Result<authorization::Context, ResponseError>>>,
 }
 
-impl Request {
-    pub fn new(rx: Mutex<mpsc::Receiver<Result<authorization::Context, RequestError>>>) -> Self {
+impl Response {
+    pub fn new(rx: Mutex<mpsc::Receiver<Result<authorization::Context, ResponseError>>>) -> Self {
         Self { result: None, rx }
     }
 
-    pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, RequestError>> {
+    pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, ResponseError>> {
         if self.result.is_some() {
             return &self.result;
         }
@@ -69,7 +69,7 @@ impl Request {
                 self.result = Some(result);
             }
             Err(mpsc::TryRecvError::Disconnected) => {
-                self.result = Some(Err(RequestError::Disconnected));
+                self.result = Some(Err(ResponseError::Disconnected));
             }
             Err(mpsc::TryRecvError::Empty) => {}
         };
@@ -78,7 +78,7 @@ impl Request {
     }
 }
 
-pub enum RequestError {
+pub enum ResponseError {
     Denied,
     Disconnected,
     NoAuthorityAvailable,

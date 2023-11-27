@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, RequestError},
+    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, ResponseError},
 };
 
 pub struct NetworkPlugin;
@@ -82,7 +82,7 @@ fn read_connection(
                             };
                         }
                         Protocol::Pong => panic!("unexpected packet"),
-                        Protocol::Request(context, request_tx) => {
+                        Protocol::Request(context, response) => {
                             if context.principal != principal.0 {
                                 warn!("impersonation");
                             }
@@ -92,12 +92,12 @@ fn read_connection(
                                 .find(|(_, _, principal)| principal.0.noun == "authority")
                             {
                                 if let Err(_) =
-                                    tx.0.send(Protocol::Request(context, request_tx.clone()))
+                                    tx.0.send(Protocol::Request(context, response.clone()))
                                 {
                                     error!("no authority available");
 
                                     if let Err(_) =
-                                        request_tx.send(Err(RequestError::NoAuthorityAvailable))
+                                        response.send(Err(ResponseError::NoAuthorityAvailable))
                                     {
                                         warn!("failed to send error");
                                     }
@@ -109,7 +109,7 @@ fn read_connection(
                                 error!("no authority available");
 
                                 if let Err(_) =
-                                    request_tx.send(Err(RequestError::NoAuthorityAvailable))
+                                    response.send(Err(ResponseError::NoAuthorityAvailable))
                                 {
                                     warn!("failed to send error");
                                 }
