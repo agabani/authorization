@@ -1,6 +1,7 @@
 mod artificial_intelligence;
 mod authority;
 mod identity;
+mod monster;
 mod network;
 mod network_client;
 mod network_server;
@@ -16,6 +17,7 @@ use artificial_intelligence::ArtificialIntelligencePlugin;
 use authority::AuthorityPlugin;
 use bevy::{prelude::*, utils::Uuid};
 use identity::{Identifiers, Principal};
+use monster::MonsterPlugin;
 use network::{ConnectionsRx, ConnectionsTx, Handshake};
 use network_client::NetworkClientPlugin;
 use network_server::NetworkServerPlugin;
@@ -104,7 +106,8 @@ pub fn run(
     app.add_plugins((
         MinimalPlugins,
         bevy::log::LogPlugin {
-            filter: "bevy_app=info,bevy_ecs=info,wgpu=warn".to_string(),
+            filter: "bevy_app=info,bevy_core=debug,bevy_ecs=info,bevy_ecs=error,bevy_log=error,wgpu=warn"
+                .to_string(),
             level: bevy::log::Level::TRACE,
         },
     ));
@@ -128,7 +131,7 @@ pub fn run(
     app.insert_resource(Principal(principal))
         .insert_resource(Identifiers(Default::default()));
 
-    app.add_plugins(PlayerPlugin);
+    app.add_plugins((MonsterPlugin, PlayerPlugin));
 
     app.run();
 }

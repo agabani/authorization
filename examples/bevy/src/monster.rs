@@ -5,16 +5,16 @@ use crate::{
     network::{send, Broadcast, ConnectionTx, Protocol, Replication, Response, ResponseError},
 };
 
-pub struct PlayerPlugin;
+pub struct MonsterPlugin;
 
-impl Plugin for PlayerPlugin {
+impl Plugin for MonsterPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, (broadcast, replication, response));
     }
 }
 
 #[derive(Default, Component)]
-pub struct Player;
+pub struct Monster;
 
 fn broadcast(
     mut commands: Commands,
@@ -28,7 +28,7 @@ fn broadcast(
         let identifier = Identifier::from(broadcast.context.resource.clone());
 
         if !identifiers.0.contains_key(&identifier) {
-            let id = commands.spawn((Player, identifier.clone())).id();
+            let id = commands.spawn((Monster, identifier.clone())).id();
             identifiers.0.insert(identifier, id);
 
             info!(
@@ -42,11 +42,11 @@ fn broadcast(
 fn replication(
     mut commands: Commands,
     principal: Res<Principal>,
-    connections: Query<(Entity, &ConnectionTx), With<Replication<Player>>>,
-    query: Query<&Identifier, With<Player>>,
+    connections: Query<(Entity, &ConnectionTx), With<Replication<Monster>>>,
+    query: Query<&Identifier, With<Monster>>,
 ) {
     connections.for_each(|(entity, tx)| {
-        commands.entity(entity).remove::<Replication<Player>>();
+        commands.entity(entity).remove::<Replication<Monster>>();
 
         for identifier in &query {
             let context = authorization::Context {
@@ -72,7 +72,7 @@ fn response(
     mut commands: Commands,
     principal: Res<Principal>,
     mut identifiers: ResMut<Identifiers>,
-    mut query: Query<(Entity, &mut Response<Player>)>,
+    mut query: Query<(Entity, &mut Response<Monster>)>,
 ) {
     query.for_each_mut(|(entity, mut response)| {
         if let Some(result) = response.poll_once() {
@@ -83,7 +83,7 @@ fn response(
                     let identifier = Identifier::from(context.resource.clone());
 
                     if !identifiers.0.contains_key(&identifier) {
-                        let id = commands.spawn((Player, identifier.clone())).id();
+                        let id = commands.spawn((Monster, identifier.clone())).id();
                         identifiers.0.insert(identifier, id);
 
                         info!(

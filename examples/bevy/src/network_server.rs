@@ -7,10 +7,12 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
+    monster::Monster,
     network::{
         send, Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, Replication,
         ResponseError,
     },
+    player::Player,
 };
 
 pub struct NetworkServerPlugin;
@@ -132,7 +134,10 @@ fn read_connection(
                             commands.spawn(Broadcast { context });
                         }
                         Protocol::Replicate => {
-                            commands.entity(entity).insert(Replication);
+                            commands.entity(entity).insert((
+                                Replication::<Monster>::default(),
+                                Replication::<Player>::default(),
+                            ));
                         }
                     }
                 }

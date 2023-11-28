@@ -1,4 +1,7 @@
-use std::sync::{mpsc, Arc, Mutex};
+use std::{
+    marker::PhantomData,
+    sync::{mpsc, Arc, Mutex},
+};
 
 use bevy::prelude::*;
 
@@ -60,8 +63,13 @@ pub struct Broadcast {
  * Replication
  * ============================================================================
  */
-#[derive(Component)]
-pub struct Replication;
+#[derive(Default, Component)]
+pub struct Replication<T>
+where
+    T: Default,
+{
+    marker: PhantomData<T>,
+}
 
 /*
  * ============================================================================
@@ -82,14 +90,19 @@ pub struct Request {
  */
 
 #[derive(Component)]
-pub struct Response {
+pub struct Response<T> {
     result: Option<Result<authorization::Context, ResponseError>>,
     rx: Mutex<mpsc::Receiver<Result<authorization::Context, ResponseError>>>,
+    marker: PhantomData<T>,
 }
 
-impl Response {
+impl<T> Response<T> {
     pub fn new(rx: Mutex<mpsc::Receiver<Result<authorization::Context, ResponseError>>>) -> Self {
-        Self { result: None, rx }
+        Self {
+            result: None,
+            rx,
+            marker: PhantomData,
+        }
     }
 
     pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, ResponseError>> {
