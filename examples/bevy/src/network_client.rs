@@ -1,21 +1,13 @@
-use std::{
-    marker::PhantomData,
-    sync::{
-        mpsc::{self, TryRecvError},
-        Mutex,
-    },
+use std::sync::{
+    mpsc::{self, TryRecvError},
+    Mutex,
 };
 
 use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    monster::Monster,
-    network::{
-        send, Broadcast, ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol,
-        ProtocolEvent, Request,
-    },
-    player::Player,
+    network::{send, ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request},
 };
 
 pub struct NetworkClientPlugin;
@@ -115,20 +107,7 @@ fn read_connection(
                         }
                         commands.spawn(Request { context, tx });
                     }
-                    Protocol::Broadcast(event) => match event {
-                        ProtocolEvent::Monster(context) => {
-                            commands.spawn(Broadcast {
-                                context,
-                                marker: PhantomData::<Monster>,
-                            });
-                        }
-                        ProtocolEvent::Player(context) => {
-                            commands.spawn(Broadcast {
-                                context,
-                                marker: PhantomData::<Player>,
-                            });
-                        }
-                    },
+                    Protocol::Broadcast(event) => event.spawn_broadcast(&mut commands),
                     Protocol::Replicate => panic!("unexpected packet"),
                 },
                 Err(error) => {

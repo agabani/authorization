@@ -5,6 +5,8 @@ use std::{
 
 use bevy::prelude::*;
 
+use crate::{monster::Monster, player::Player};
+
 /*
  * ============================================================================
  * Connections
@@ -53,6 +55,25 @@ pub enum ProtocolEvent {
     Player(authorization::Context),
 }
 
+impl ProtocolEvent {
+    pub fn spawn_broadcast(self, commands: &mut Commands) {
+        match self {
+            ProtocolEvent::Monster(context) => {
+                commands.spawn(Broadcast {
+                    context,
+                    marker: PhantomData::<Monster>,
+                });
+            }
+            ProtocolEvent::Player(context) => {
+                commands.spawn(Broadcast {
+                    context,
+                    marker: PhantomData::<Player>,
+                });
+            }
+        }
+    }
+}
+
 /*
  * ============================================================================
  * Broadcast
@@ -62,7 +83,7 @@ pub enum ProtocolEvent {
 #[derive(Component)]
 pub struct Broadcast<T> {
     pub context: authorization::Context,
-    pub marker: PhantomData<T>,
+    marker: PhantomData<T>,
 }
 
 /*
@@ -71,7 +92,7 @@ pub struct Broadcast<T> {
  * ============================================================================
  */
 #[derive(Default, Component)]
-pub struct Replication<T>
+pub struct Replicate<T>
 where
     T: Default,
 {

@@ -1,9 +1,6 @@
-use std::{
-    marker::PhantomData,
-    sync::{
-        mpsc::{self, TryRecvError},
-        Mutex,
-    },
+use std::sync::{
+    mpsc::{self, TryRecvError},
+    Mutex,
 };
 
 use bevy::prelude::*;
@@ -12,8 +9,7 @@ use crate::{
     identity::Principal,
     monster::Monster,
     network::{
-        send, Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, ProtocolEvent,
-        Replication, ResponseError,
+        send, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, Replicate, ResponseError,
     },
     player::Player,
 };
@@ -134,25 +130,12 @@ fn read_connection(
                                 send(&mut commands, entity, tx, protocol);
                             });
 
-                            match event {
-                                ProtocolEvent::Monster(context) => {
-                                    commands.spawn(Broadcast {
-                                        context,
-                                        marker: PhantomData::<Monster>,
-                                    });
-                                }
-                                ProtocolEvent::Player(context) => {
-                                    commands.spawn(Broadcast {
-                                        context,
-                                        marker: PhantomData::<Player>,
-                                    });
-                                }
-                            }
+                            event.spawn_broadcast(&mut commands);
                         }
                         Protocol::Replicate => {
                             commands.entity(entity).insert((
-                                Replication::<Monster>::default(),
-                                Replication::<Player>::default(),
+                                Replicate::<Monster>::default(),
+                                Replicate::<Player>::default(),
                             ));
                         }
                     }

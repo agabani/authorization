@@ -3,8 +3,7 @@ use bevy::prelude::*;
 use crate::{
     identity::{Identifier, Identifiers, Principal},
     network::{
-        send, Broadcast, ConnectionTx, Protocol, ProtocolEvent, Replication, Response,
-        ResponseError,
+        send, Broadcast, ConnectionTx, Protocol, ProtocolEvent, Replicate, Response, ResponseError,
     },
 };
 
@@ -12,44 +11,28 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (broadcast, replication, response));
+        app.add_systems(
+            Update,
+            (
+                spawn_from_broadcast,
+                replicate_to_connection,
+                spawn_from_response,
+            ),
+        );
     }
 }
 
 #[derive(Default, Component)]
 pub struct Player;
 
-fn broadcast(
+fn replicate_to_connection(
     mut commands: Commands,
     principal: Res<Principal>,
-    mut identifiers: ResMut<Identifiers>,
-    query: Query<(Entity, &Broadcast<Player>)>,
-) {
-    query.for_each(|(entity, broadcast)| {
-        commands.entity(entity).despawn();
-
-        let identifier = Identifier::from(broadcast.context.resource.clone());
-
-        if !identifiers.0.contains_key(&identifier) {
-            let id = commands.spawn((Player, identifier.clone())).id();
-            identifiers.0.insert(identifier, id);
-
-            info!(
-                "[broadcast] spawned player {:?} {:?}",
-                principal.0, broadcast.context.resource
-            );
-        }
-    });
-}
-
-fn replication(
-    mut commands: Commands,
-    principal: Res<Principal>,
-    connections: Query<(Entity, &ConnectionTx), With<Replication<Player>>>,
+    connections: Query<(Entity, &ConnectionTx), With<Replicate<Player>>>,
     query: Query<&Identifier, With<Player>>,
 ) {
     connections.for_each(|(entity, tx)| {
-        commands.entity(entity).remove::<Replication<Player>>();
+        commands.entity(entity).remove::<Replicate<Player>>();
 
         for identifier in &query {
             let context = authorization::Context {
@@ -71,7 +54,24 @@ fn replication(
     });
 }
 
-fn response(
+fn spawn_from_broadcast(
+    mut commands: Commands,
+    principal: Res<Principal>,
+    mut identifiers: ResMut<Identifiers>,
+    query: Query<(Entity, &Broadcast<Player>)>,
+) {
+    query.for_each(|(entity, broadcast)| {
+        commands.entity(entity).despawn();
+        spawn(
+            &mut commands,
+            &principal,
+            &mut identifiers,
+            &broadcast.context,
+        );
+    });
+}
+
+fn spawn_from_response(
     mut commands: Commands,
     principal: Res<Principal>,
     mut identifiers: ResMut<Identifiers>,
@@ -79,31 +79,33 @@ fn response(
 ) {
     query.for_each_mut(|(entity, mut response)| {
         if let Some(result) = response.poll_once() {
+            commands.entity(entity).despawn();
             match result {
                 Ok(context) => {
-                    commands.entity(entity).despawn();
-
-                    let identifier = Identifier::from(context.resource.clone());
-
-                    if !identifiers.0.contains_key(&identifier) {
-                        let id = commands.spawn((Player, identifier.clone())).id();
-                        identifiers.0.insert(identifier, id);
-
-                        info!(
-                            "[response] spawned player {:?} {:?}",
-                            principal.0, context.resource
-                        );
-                    }
+                    spawn(&mut commands, &principal, &mut identifiers, context);
                 }
-                Err(error) => {
-                    match error {
-                        ResponseError::Denied => warn!("denied"),
-                        ResponseError::Disconnected => warn!("disconnected"),
-                        ResponseError::NoAuthorityAvailable => warn!("no authority available"),
-                    }
-                    commands.entity(entity).despawn();
-                }
+                Err(error) => match error {
+                    ResponseError::Denied => warn!("denied"),
+                    ResponseError::Disconnected => warn!("disconnected"),
+                    ResponseError::NoAuthorityAvailable => warn!("no authority available"),
+                },
             }
         };
     });
+}
+
+fn spawn(
+    commands: &mut Commands,
+    principal: &Principal,
+    identifiers: &mut Identifiers,
+    context: &authorization::Context,
+) {
+    let identifier = Identifier::from(context.resource.clone());
+
+    if !identifiers.0.contains_key(&identifier) {
+        let id = commands.spawn((Player, identifier.clone())).id();
+        identifiers.0.insert(identifier, id);
+
+        info!("spawned {:?} {:?}", principal.0, context.resource);
+    }
 }
