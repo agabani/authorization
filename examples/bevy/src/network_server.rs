@@ -1,6 +1,9 @@
-use std::sync::{
-    mpsc::{self, TryRecvError},
-    Mutex,
+use std::{
+    marker::PhantomData,
+    sync::{
+        mpsc::{self, TryRecvError},
+        Mutex,
+    },
 };
 
 use bevy::prelude::*;
@@ -9,8 +12,8 @@ use crate::{
     identity::Principal,
     monster::Monster,
     network::{
-        send, Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, Replication,
-        ResponseError,
+        send, Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, ProtocolEvent,
+        Replication, ResponseError,
     },
     player::Player,
 };
@@ -120,18 +123,31 @@ fn read_connection(
                                 }
                             }
                         }
-                        Protocol::Broadcast(context) => {
+                        Protocol::Broadcast(event) => {
                             if principal.0.noun != "authority" {
                                 warn!("permission");
                                 return;
                             }
 
                             broadcast.for_each(|(entity, tx)| {
-                                let protocol = Protocol::Broadcast(context.clone());
+                                let protocol = Protocol::Broadcast(event.clone());
                                 send(&mut commands, entity, tx, protocol);
                             });
 
-                            commands.spawn(Broadcast { context });
+                            match event {
+                                ProtocolEvent::Monster(context) => {
+                                    commands.spawn(Broadcast {
+                                        context,
+                                        marker: PhantomData::<Monster>,
+                                    });
+                                }
+                                ProtocolEvent::Player(context) => {
+                                    commands.spawn(Broadcast {
+                                        context,
+                                        marker: PhantomData::<Player>,
+                                    });
+                                }
+                            }
                         }
                         Protocol::Replicate => {
                             commands.entity(entity).insert((

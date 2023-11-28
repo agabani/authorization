@@ -106,8 +106,7 @@ pub fn run(
     app.add_plugins((
         MinimalPlugins,
         bevy::log::LogPlugin {
-            filter: "bevy_app=info,bevy_core=debug,bevy_ecs=info,bevy_ecs=error,bevy_log=error,wgpu=warn"
-                .to_string(),
+            filter: "bevy_app=info,bevy_ecs=info,wgpu=warn".to_string(),
             level: bevy::log::Level::TRACE,
         },
     ));

@@ -2,7 +2,10 @@ use bevy::prelude::*;
 
 use crate::{
     identity::{Identifier, Identifiers, Principal},
-    network::{send, Broadcast, ConnectionTx, Protocol, Replication, Response, ResponseError},
+    network::{
+        send, Broadcast, ConnectionTx, Protocol, ProtocolEvent, Replication, Response,
+        ResponseError,
+    },
 };
 
 pub struct MonsterPlugin;
@@ -20,7 +23,7 @@ fn broadcast(
     mut commands: Commands,
     principal: Res<Principal>,
     mut identifiers: ResMut<Identifiers>,
-    query: Query<(Entity, &Broadcast)>,
+    query: Query<(Entity, &Broadcast<Monster>)>,
 ) {
     query.for_each(|(entity, broadcast)| {
         commands.entity(entity).despawn();
@@ -60,7 +63,7 @@ fn replication(
                 resource: identifier.clone().into(),
             };
 
-            let protocol = Protocol::Broadcast(context);
+            let protocol = Protocol::Broadcast(ProtocolEvent::Monster(context));
             if !send(&mut commands, entity, tx, protocol) {
                 return;
             }

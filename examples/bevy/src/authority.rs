@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::network::{send, ConnectionTx, Protocol, Request};
+use crate::network::{send, ConnectionTx, Protocol, ProtocolEvent, Request};
 
 pub struct AuthorityPlugin;
 
@@ -22,7 +22,12 @@ fn handle_request(
         context.resource.id = Uuid::new_v4().to_string();
 
         tx.for_each(|(entity, tx)| {
-            let protocol = Protocol::Broadcast(context.clone());
+            let protocol_event = match context.resource.noun.as_str() {
+                "monster" => ProtocolEvent::Monster(context.clone()),
+                "player" => ProtocolEvent::Player(context.clone()),
+                noun => todo!("{noun}"),
+            };
+            let protocol = Protocol::Broadcast(protocol_event);
             send(&mut commands, entity, tx, protocol);
         });
 

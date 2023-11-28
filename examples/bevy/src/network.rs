@@ -43,8 +43,14 @@ pub enum Protocol {
         authorization::Context,
         mpsc::Sender<Result<authorization::Context, ResponseError>>,
     ),
-    Broadcast(authorization::Context),
+    Broadcast(ProtocolEvent),
     Replicate,
+}
+
+#[derive(Clone)]
+pub enum ProtocolEvent {
+    Monster(authorization::Context),
+    Player(authorization::Context),
 }
 
 /*
@@ -54,8 +60,9 @@ pub enum Protocol {
  */
 
 #[derive(Component)]
-pub struct Broadcast {
+pub struct Broadcast<T> {
     pub context: authorization::Context,
+    pub marker: PhantomData<T>,
 }
 
 /*
