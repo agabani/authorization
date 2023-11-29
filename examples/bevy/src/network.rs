@@ -21,7 +21,7 @@ pub struct ConnectionsTx(pub mpsc::Sender<Handshake>);
 
 pub struct Handshake {
     pub principal: authorization::Principal,
-    pub tx: mpsc::Sender<Protocol>,
+    pub tx: mpsc::Sender<Frame>,
 }
 
 /*
@@ -31,13 +31,13 @@ pub struct Handshake {
  */
 
 #[derive(Component)]
-pub struct ConnectionRx(pub Mutex<mpsc::Receiver<Protocol>>);
+pub struct ConnectionRx(pub Mutex<mpsc::Receiver<Frame>>);
 
 #[derive(Component)]
-pub struct ConnectionTx(pub mpsc::Sender<Protocol>);
+pub struct ConnectionTx(pub mpsc::Sender<Frame>);
 
-pub enum Protocol {
-    Connected(mpsc::Sender<Protocol>),
+pub enum Frame {
+    Connected(mpsc::Sender<Frame>),
     Disconnect,
     Ping,
     Pong,
@@ -45,26 +45,26 @@ pub enum Protocol {
         authorization::Context,
         mpsc::Sender<Result<authorization::Context, ResponseError>>,
     ),
-    Broadcast(ProtocolEvent),
+    Broadcast(FrameEvent),
     Replicate,
 }
 
 #[derive(Clone)]
-pub enum ProtocolEvent {
+pub enum FrameEvent {
     Monster(authorization::Context),
     Player(authorization::Context),
 }
 
-impl ProtocolEvent {
+impl FrameEvent {
     pub fn spawn_broadcast(self, commands: &mut Commands) {
         match self {
-            ProtocolEvent::Monster(context) => {
+            FrameEvent::Monster(context) => {
                 commands.spawn(Broadcast {
                     context,
                     marker: PhantomData::<Monster>,
                 });
             }
-            ProtocolEvent::Player(context) => {
+            FrameEvent::Player(context) => {
                 commands.spawn(Broadcast {
                     context,
                     marker: PhantomData::<Player>,
@@ -164,13 +164,8 @@ pub enum ResponseError {
  * ============================================================================
  */
 
-pub fn send(
-    commands: &mut Commands,
-    entity: Entity,
-    tx: &ConnectionTx,
-    protocol: Protocol,
-) -> bool {
-    let result = tx.0.send(protocol);
+pub fn send(commands: &mut Commands, entity: Entity, tx: &ConnectionTx, frame: Frame) -> bool {
+    let result = tx.0.send(frame);
     if result.is_err() {
         commands.entity(entity).despawn();
         warn!("disconnected");

@@ -8,9 +8,7 @@ use bevy::prelude::*;
 use crate::{
     identity::Principal,
     monster::Monster,
-    network::{
-        send, ConnectionRx, ConnectionTx, ConnectionsRx, Protocol, Replicate, ResponseError,
-    },
+    network::{send, ConnectionRx, ConnectionTx, ConnectionsRx, Frame, Replicate, ResponseError},
     player::Player,
 };
 
@@ -38,7 +36,7 @@ impl Plugin for NetworkServerPlugin {
 fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
     for handshake in connections.0.lock().expect("poisoned").try_iter() {
         let (tx, rx) = mpsc::channel();
-        if let Ok(_) = handshake.tx.send(Protocol::Connected(tx)) {
+        if let Ok(_) = handshake.tx.send(Frame::Connected(tx)) {
             info!("connected {:?}", handshake.principal);
             commands.spawn((
                 ConnectionRx(Mutex::new(rx)),
@@ -74,18 +72,18 @@ fn read_connection(
         let rx = rx.0.lock().expect("poisoned");
         loop {
             match rx.try_recv() {
-                Ok(protocol) => {
+                Ok(frame) => {
                     timeout.0.reset();
 
-                    match protocol {
-                        Protocol::Connected(_) => panic!("unexpected packet"),
-                        Protocol::Disconnect => todo!("disconnect"),
-                        Protocol::Ping => {
-                            let protocol = Protocol::Pong;
-                            send(&mut commands, entity, tx, protocol);
+                    match frame {
+                        Frame::Connected(_) => panic!("unexpected packet"),
+                        Frame::Disconnect => todo!("disconnect"),
+                        Frame::Ping => {
+                            let frame = Frame::Pong;
+                            send(&mut commands, entity, tx, frame);
                         }
-                        Protocol::Pong => panic!("unexpected packet"),
-                        Protocol::Request(context, response) => {
+                        Frame::Pong => panic!("unexpected packet"),
+                        Frame::Request(context, response) => {
                             if context.principal != principal.0 {
                                 warn!("impersonation");
                             }
@@ -94,8 +92,8 @@ fn read_connection(
                                 .iter()
                                 .find(|(_, _, principal)| principal.0.noun == "authority")
                             {
-                                let protocol = Protocol::Request(context, response.clone());
-                                if !send(&mut commands, entity, tx, protocol) {
+                                let frame = Frame::Request(context, response.clone());
+                                if !send(&mut commands, entity, tx, frame) {
                                     error!("failed to send to authority");
 
                                     if response
@@ -119,20 +117,20 @@ fn read_connection(
                                 }
                             }
                         }
-                        Protocol::Broadcast(event) => {
+                        Frame::Broadcast(event) => {
                             if principal.0.noun != "authority" {
                                 warn!("permission");
                                 return;
                             }
 
                             broadcast.for_each(|(entity, tx)| {
-                                let protocol = Protocol::Broadcast(event.clone());
-                                send(&mut commands, entity, tx, protocol);
+                                let frame = Frame::Broadcast(event.clone());
+                                send(&mut commands, entity, tx, frame);
                             });
 
                             event.spawn_broadcast(&mut commands);
                         }
-                        Protocol::Replicate => {
+                        Frame::Replicate => {
                             commands.entity(entity).insert((
                                 Replicate::<Monster>::default(),
                                 Replicate::<Player>::default(),
@@ -171,7 +169,7 @@ fn disconnect_timed_out_connections(
 ) {
     query.for_each_mut(|(entity, tx, mut timeout)| {
         if timeout.0.tick(time.delta()).finished() {
-            if let Err(_) = tx.0.send(Protocol::Disconnect) {
+            if let Err(_) = tx.0.send(Frame::Disconnect) {
                 warn!("disconnected");
             }
             commands.entity(entity).despawn();

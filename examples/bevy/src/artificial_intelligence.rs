@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::{
     identity::Principal,
     monster::Monster,
-    network::{send, ConnectionTx, Protocol, Response},
+    network::{send, ConnectionTx, Frame, Response},
     player::Player,
 };
 
@@ -44,9 +44,9 @@ fn try_spawn_monster(
             };
 
             let (response_tx, rx) = mpsc::channel();
-            let protocol = Protocol::Request(context, response_tx);
+            let frame = Frame::Request(context, response_tx);
 
-            if send(&mut commands, entity, &tx, protocol) {
+            if send(&mut commands, entity, &tx, frame) {
                 commands.spawn(Response::<Monster>::new(Mutex::new(rx)));
             }
         };
@@ -80,9 +80,9 @@ fn try_spawn_player(
             };
 
             let (response_tx, rx) = mpsc::channel();
-            let protocol = Protocol::Request(context, response_tx);
+            let frame = Frame::Request(context, response_tx);
 
-            if send(&mut commands, entity, &tx, protocol) {
+            if send(&mut commands, entity, &tx, frame) {
                 commands.spawn(Response::<Player>::new(Mutex::new(rx)));
             }
         };

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     identity::{Identifier, Identifiers, Principal},
     network::{
-        send, Broadcast, ConnectionTx, Protocol, ProtocolEvent, Replicate, Response, ResponseError,
+        send, Broadcast, ConnectionTx, Frame, FrameEvent, Replicate, Response, ResponseError,
     },
 };
 
@@ -46,8 +46,8 @@ fn replicate_to_connection(
                 resource: identifier.clone().into(),
             };
 
-            let protocol = Protocol::Broadcast(ProtocolEvent::Player(context));
-            if !send(&mut commands, entity, tx, protocol) {
+            let frame = Frame::Broadcast(FrameEvent::Player(context));
+            if !send(&mut commands, entity, tx, frame) {
                 return;
             }
         }

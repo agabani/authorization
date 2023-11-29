@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{send, ConnectionRx, ConnectionTx, ConnectionsTx, Handshake, Protocol, Request},
+    network::{send, ConnectionRx, ConnectionTx, ConnectionsTx, Frame, Handshake, Request},
 };
 
 pub struct NetworkClientPlugin;
@@ -59,7 +59,7 @@ fn initialize_connection(
 ) {
     query.for_each(
         |(entity, rx)| match rx.0.lock().expect("poisoned").try_recv() {
-            Ok(Protocol::Connected(tx)) => {
+            Ok(Frame::Connected(tx)) => {
                 commands
                     .entity(entity)
                     .insert(ConnectionTx(tx))
@@ -93,22 +93,22 @@ fn read_connection(
         let rx = rx.0.lock().expect("poisoned");
         loop {
             match rx.try_recv() {
-                Ok(protocol) => match protocol {
-                    Protocol::Connected(_) => panic!("unexpected packet"),
-                    Protocol::Disconnect => {
+                Ok(frame) => match frame {
+                    Frame::Connected(_) => panic!("unexpected packet"),
+                    Frame::Disconnect => {
                         commands.entity(entity).despawn();
                         warn!("disconnected");
                     }
-                    Protocol::Ping => panic!("unexpected packet"),
-                    Protocol::Pong => {}
-                    Protocol::Request(context, tx) => {
+                    Frame::Ping => panic!("unexpected packet"),
+                    Frame::Pong => {}
+                    Frame::Request(context, tx) => {
                         if principal.0.noun != "authority" {
                             panic!("unexpected packet");
                         }
                         commands.spawn(Request { context, tx });
                     }
-                    Protocol::Broadcast(event) => event.spawn_broadcast(&mut commands),
-                    Protocol::Replicate => panic!("unexpected packet"),
+                    Frame::Broadcast(event) => event.spawn_broadcast(&mut commands),
+                    Frame::Replicate => panic!("unexpected packet"),
                 },
                 Err(error) => {
                     match error {
@@ -141,8 +141,8 @@ fn keep_connection_alive(
 ) {
     query.for_each_mut(|(entity, tx, mut keep_alive)| {
         if keep_alive.0.tick(time.delta()).finished() {
-            let protocol = Protocol::Ping;
-            send(&mut commands, entity, tx, protocol);
+            let frame = Frame::Ping;
+            send(&mut commands, entity, tx, frame);
         }
     });
 }
@@ -155,7 +155,7 @@ fn keep_connection_alive(
 
 fn replicate(mut commands: Commands, query: Query<(Entity, &ConnectionTx), Added<ConnectionTx>>) {
     query.for_each(|(entity, tx)| {
-        let protocol = Protocol::Replicate;
-        send(&mut commands, entity, tx, protocol);
+        let frame = Frame::Replicate;
+        send(&mut commands, entity, tx, frame);
     });
 }
