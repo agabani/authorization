@@ -30,34 +30,36 @@ pub struct Handshake {
  * ============================================================================
  */
 
+/// Connection Receiver.
 #[derive(Component)]
 pub struct ConnectionRx(Mutex<mpsc::Receiver<Frame>>);
 
 impl ConnectionRx {
+    /// Creates a new [`ConnectionRx`].
     pub fn new(receiver: Mutex<mpsc::Receiver<Frame>>) -> Self {
         Self(receiver)
     }
 
+    /// Try to receive a frame.
     pub fn try_recv(&self) -> Result<Frame, mpsc::TryRecvError> {
         self.0.lock().expect("poisoned").try_recv()
     }
 }
 
+/// Connection Transmitter.
 #[derive(Component)]
 pub struct ConnectionTx(mpsc::Sender<Frame>);
 
 impl ConnectionTx {
+    /// Creates a new [`ConnectionTx`].
     pub fn new(sender: mpsc::Sender<Frame>) -> Self {
         Self(sender)
     }
 
-    pub fn send(&self, frame: Frame) -> Result<(), SendError> {
-        self.0.send(frame).map_err(|_| SendError::Disconnected)
+    /// Send a frame.
+    pub fn send(&self, frame: Frame) -> Result<(), mpsc::SendError<Frame>> {
+        self.0.send(frame)
     }
-}
-
-pub enum SendError {
-    Disconnected,
 }
 
 pub enum Frame {
