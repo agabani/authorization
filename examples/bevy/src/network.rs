@@ -5,7 +5,7 @@ use std::{
 
 use bevy::prelude::*;
 
-use crate::{async_task::AsyncTask, monster::Monster, player::Player};
+use crate::{async_task::AsyncTask, identity::Principal, monster::Monster, player::Player};
 
 /*
  * ============================================================================
@@ -13,11 +13,33 @@ use crate::{async_task::AsyncTask, monster::Monster, player::Player};
  * ============================================================================
  */
 
+/// Connections Receiver.
 #[derive(Resource)]
 pub struct ConnectionsRx(pub Arc<Mutex<mpsc::Receiver<Handshake>>>);
 
+/// Connections Transmitter.
 #[derive(Resource)]
-pub struct ConnectionsTx(pub mpsc::Sender<Handshake>);
+pub struct ConnectionsTx(mpsc::Sender<Handshake>);
+
+impl ConnectionsTx {
+    /// Creates a new [`ConnectionsTx`].
+    pub fn new(sender: mpsc::Sender<Handshake>) -> Self {
+        Self(sender)
+    }
+
+    /// Creates a [`ConnectionRx`].
+    pub fn connect(
+        &self,
+        principal: &Res<Principal>,
+    ) -> Result<ConnectionRx, mpsc::SendError<Handshake>> {
+        let (tx, rx) = mpsc::channel();
+        self.0.send(Handshake {
+            principal: principal.0.clone(),
+            tx,
+        })?;
+        Ok(ConnectionRx::new(Mutex::new(rx)))
+    }
+}
 
 pub struct Handshake {
     pub principal: authorization::Principal,

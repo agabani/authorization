@@ -40,15 +40,8 @@ fn initiate_connection(
     query: Query<&ConnectionRx>,
 ) {
     if query.is_empty() {
-        let (tx, rx) = mpsc::channel();
-        connections
-            .0
-            .send(Handshake {
-                principal: principal.0.clone(),
-                tx,
-            })
-            .expect("connections closed");
-        commands.spawn(ConnectionRx::new(Mutex::new(rx)));
+        let connection = connections.connect(&principal).expect("connection closed");
+        commands.spawn(connection);
     }
 }
 

@@ -125,7 +125,7 @@ pub fn run(
             .insert_resource(ConnectionsRx(connections_rx));
     } else {
         app.add_plugins(NetworkClientPlugin)
-            .insert_resource(ConnectionsTx(connections_tx));
+            .insert_resource(ConnectionsTx::new(connections_tx));
     }
 
     app.insert_resource(Principal(principal))
