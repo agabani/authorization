@@ -48,7 +48,7 @@ fn initiate_connection(
                 tx,
             })
             .expect("connections closed");
-        commands.spawn(ConnectionRx(Mutex::new(rx)));
+        commands.spawn(ConnectionRx::new(Mutex::new(rx)));
     }
 }
 
@@ -57,25 +57,23 @@ fn initialize_connection(
     principal: Res<Principal>,
     query: Query<(Entity, &ConnectionRx), Without<ConnectionTx>>,
 ) {
-    query.for_each(
-        |(entity, rx)| match rx.0.lock().expect("poisoned").try_recv() {
-            Ok(Frame::Connected(tx)) => {
-                commands
-                    .entity(entity)
-                    .insert(ConnectionTx::new(tx))
-                    .insert(KeepAlive(Timer::from_seconds(1.0, TimerMode::Repeating)));
-                info!("connected {:?}", principal.0);
-            }
-            Ok(_) => {
-                panic!("unexpected packet");
-            }
-            Err(mpsc::TryRecvError::Disconnected) => {
-                commands.entity(entity).despawn();
-                warn!("disconnected");
-            }
-            Err(mpsc::TryRecvError::Empty) => {}
-        },
-    );
+    query.for_each(|(entity, rx)| match rx.try_recv() {
+        Ok(Frame::Connected(tx)) => {
+            commands
+                .entity(entity)
+                .insert(ConnectionTx::new(tx))
+                .insert(KeepAlive(Timer::from_seconds(1.0, TimerMode::Repeating)));
+            info!("connected {:?}", principal.0);
+        }
+        Ok(_) => {
+            panic!("unexpected packet");
+        }
+        Err(mpsc::TryRecvError::Disconnected) => {
+            commands.entity(entity).despawn();
+            warn!("disconnected");
+        }
+        Err(mpsc::TryRecvError::Empty) => {}
+    });
 }
 
 /*
@@ -89,37 +87,34 @@ fn read_connection(
     principal: Res<Principal>,
     query: Query<(Entity, &ConnectionRx), With<ConnectionTx>>,
 ) {
-    query.for_each(|(entity, rx)| {
-        let rx = rx.0.lock().expect("poisoned");
-        loop {
-            match rx.try_recv() {
-                Ok(frame) => match frame {
-                    Frame::Connected(_) => panic!("unexpected packet"),
-                    Frame::Disconnect => {
+    query.for_each(|(entity, connection)| loop {
+        match connection.try_recv() {
+            Ok(frame) => match frame {
+                Frame::Connected(_) => panic!("unexpected packet"),
+                Frame::Disconnect => {
+                    commands.entity(entity).despawn();
+                    warn!("disconnected");
+                }
+                Frame::Ping => panic!("unexpected packet"),
+                Frame::Pong => {}
+                Frame::Request(context, tx) => {
+                    if principal.0.noun != "authority" {
+                        panic!("unexpected packet");
+                    }
+                    commands.spawn(Request { context, tx });
+                }
+                Frame::Broadcast(event) => event.spawn_broadcast(&mut commands),
+                Frame::Replicate => panic!("unexpected packet"),
+            },
+            Err(error) => {
+                match error {
+                    TryRecvError::Empty => {}
+                    TryRecvError::Disconnected => {
                         commands.entity(entity).despawn();
                         warn!("disconnected");
                     }
-                    Frame::Ping => panic!("unexpected packet"),
-                    Frame::Pong => {}
-                    Frame::Request(context, tx) => {
-                        if principal.0.noun != "authority" {
-                            panic!("unexpected packet");
-                        }
-                        commands.spawn(Request { context, tx });
-                    }
-                    Frame::Broadcast(event) => event.spawn_broadcast(&mut commands),
-                    Frame::Replicate => panic!("unexpected packet"),
-                },
-                Err(error) => {
-                    match error {
-                        TryRecvError::Empty => {}
-                        TryRecvError::Disconnected => {
-                            commands.entity(entity).despawn();
-                            warn!("disconnected");
-                        }
-                    }
-                    return;
                 }
+                return;
             }
         }
     });

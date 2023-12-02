@@ -39,7 +39,7 @@ fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
         if let Ok(_) = handshake.tx.send(Frame::Connected(tx)) {
             info!("connected {:?}", handshake.principal);
             commands.spawn((
-                ConnectionRx(Mutex::new(rx)),
+                ConnectionRx::new(Mutex::new(rx)),
                 ConnectionTx::new(handshake.tx),
                 ConnectionTimeout(Timer::from_seconds(2.0, TimerMode::Once)),
                 Principal(handshake.principal),
@@ -66,48 +66,33 @@ fn read_connection(
         &mut ConnectionTimeout,
     )>,
     authority: Query<(Entity, &ConnectionTx, &Principal)>,
-    broadcast: Query<(Entity, &ConnectionTx)>,
+    broadcast: Query<&ConnectionTx>,
 ) {
-    query.for_each_mut(|(entity, principal, rx, tx, mut timeout)| {
-        let rx = rx.0.lock().expect("poisoned");
-        loop {
-            match rx.try_recv() {
-                Ok(frame) => {
-                    timeout.0.reset();
+    query.for_each_mut(|(entity, principal, rx, tx, mut timeout)| loop {
+        match rx.try_recv() {
+            Ok(frame) => {
+                timeout.0.reset();
 
-                    match frame {
-                        Frame::Connected(_) => panic!("unexpected packet"),
-                        Frame::Disconnect => todo!("disconnect"),
-                        Frame::Ping => {
-                            let frame = Frame::Pong;
-                            tx.send(frame);
+                match frame {
+                    Frame::Connected(_) => panic!("unexpected packet"),
+                    Frame::Disconnect => todo!("disconnect"),
+                    Frame::Ping => {
+                        let frame = Frame::Pong;
+                        let _ = tx.send(frame);
+                    }
+                    Frame::Pong => panic!("unexpected packet"),
+                    Frame::Request(context, response) => {
+                        if context.principal != principal.0 {
+                            warn!("impersonation");
                         }
-                        Frame::Pong => panic!("unexpected packet"),
-                        Frame::Request(context, response) => {
-                            if context.principal != principal.0 {
-                                warn!("impersonation");
-                            }
 
-                            if let Some((entity, tx, _)) = authority
-                                .iter()
-                                .find(|(_, _, principal)| principal.0.noun == "authority")
-                            {
-                                let frame = Frame::Request(context, response.clone());
-                                if let Err(_) = tx.send(frame) {
-                                    error!("failed to send to authority");
-
-                                    if response
-                                        .send(Err(ResponseError::NoAuthorityAvailable))
-                                        .is_err()
-                                    {
-                                        warn!("failed to send error");
-                                    }
-
-                                    commands.entity(entity).despawn();
-                                    warn!("disconnected");
-                                }
-                            } else {
-                                error!("no authority available");
+                        if let Some((entity, tx, _)) = authority
+                            .iter()
+                            .find(|(_, _, principal)| principal.0.noun == "authority")
+                        {
+                            let frame = Frame::Request(context, response.clone());
+                            if let Err(_) = tx.send(frame) {
+                                error!("failed to send to authority");
 
                                 if response
                                     .send(Err(ResponseError::NoAuthorityAvailable))
@@ -115,39 +100,51 @@ fn read_connection(
                                 {
                                     warn!("failed to send error");
                                 }
+
+                                commands.entity(entity).despawn();
+                                warn!("disconnected");
+                            }
+                        } else {
+                            error!("no authority available");
+
+                            if response
+                                .send(Err(ResponseError::NoAuthorityAvailable))
+                                .is_err()
+                            {
+                                warn!("failed to send error");
                             }
                         }
-                        Frame::Broadcast(event) => {
-                            if principal.0.noun != "authority" {
-                                warn!("permission");
-                                return;
-                            }
-
-                            broadcast.for_each(|(entity, tx)| {
-                                let frame = Frame::Broadcast(event.clone());
-                                tx.send(frame);
-                            });
-
-                            event.spawn_broadcast(&mut commands);
+                    }
+                    Frame::Broadcast(event) => {
+                        if principal.0.noun != "authority" {
+                            warn!("permission");
+                            return;
                         }
-                        Frame::Replicate => {
-                            commands.entity(entity).insert((
-                                Replicate::<Monster>::default(),
-                                Replicate::<Player>::default(),
-                            ));
-                        }
+
+                        broadcast.for_each(|tx| {
+                            let frame = Frame::Broadcast(event.clone());
+                            let _ = tx.send(frame);
+                        });
+
+                        event.spawn_broadcast(&mut commands);
+                    }
+                    Frame::Replicate => {
+                        commands.entity(entity).insert((
+                            Replicate::<Monster>::default(),
+                            Replicate::<Player>::default(),
+                        ));
                     }
                 }
-                Err(error) => {
-                    match error {
-                        TryRecvError::Empty => {}
-                        TryRecvError::Disconnected => {
-                            commands.entity(entity).despawn();
-                            warn!("disconnected");
-                        }
+            }
+            Err(error) => {
+                match error {
+                    TryRecvError::Empty => {}
+                    TryRecvError::Disconnected => {
+                        commands.entity(entity).despawn();
+                        warn!("disconnected");
                     }
-                    return;
                 }
+                return;
             }
         }
     });

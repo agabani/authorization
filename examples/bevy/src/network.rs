@@ -31,7 +31,17 @@ pub struct Handshake {
  */
 
 #[derive(Component)]
-pub struct ConnectionRx(pub Mutex<mpsc::Receiver<Frame>>);
+pub struct ConnectionRx(Mutex<mpsc::Receiver<Frame>>);
+
+impl ConnectionRx {
+    pub fn new(receiver: Mutex<mpsc::Receiver<Frame>>) -> Self {
+        Self(receiver)
+    }
+
+    pub fn try_recv(&self) -> Result<Frame, mpsc::TryRecvError> {
+        self.0.lock().expect("poisoned").try_recv()
+    }
+}
 
 #[derive(Component)]
 pub struct ConnectionTx(mpsc::Sender<Frame>);
