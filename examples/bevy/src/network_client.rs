@@ -1,13 +1,10 @@
-use std::sync::{
-    mpsc::{self, TryRecvError},
-    Mutex,
-};
+use std::sync::mpsc::{self, TryRecvError};
 
 use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{ConnectionRx, ConnectionTx, ConnectionsTx, Frame, Handshake, Request},
+    network::{ConnectionRx, ConnectionTx, ConnectionsTx, Frame, Request},
 };
 
 pub struct NetworkClientPlugin;
@@ -122,15 +119,11 @@ fn read_connection(
 #[derive(Component)]
 struct KeepAlive(Timer);
 
-fn keep_connection_alive(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut query: Query<(Entity, &ConnectionTx, &mut KeepAlive)>,
-) {
-    query.for_each_mut(|(entity, tx, mut keep_alive)| {
+fn keep_connection_alive(time: Res<Time>, mut query: Query<(&ConnectionTx, &mut KeepAlive)>) {
+    query.for_each_mut(|(tx, mut keep_alive)| {
         if keep_alive.0.tick(time.delta()).finished() {
             let frame = Frame::Ping;
-            tx.send(frame);
+            let _ = tx.send(frame);
         }
     });
 }
@@ -141,9 +134,9 @@ fn keep_connection_alive(
  * ============================================================================
  */
 
-fn replicate(mut commands: Commands, query: Query<(Entity, &ConnectionTx), Added<ConnectionTx>>) {
-    query.for_each(|(entity, tx)| {
+fn replicate(query: Query<&ConnectionTx, Added<ConnectionTx>>) {
+    query.for_each(|tx| {
         let frame = Frame::Replicate;
-        tx.send(frame);
+        let _ = tx.send(frame);
     });
 }

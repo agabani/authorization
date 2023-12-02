@@ -50,7 +50,7 @@ fn replicate_to_connection(
                 resource: identifier.clone().into(),
             };
             let frame = Frame::Broadcast(FrameEvent::Player(context));
-            tx.send(frame);
+            let _ = tx.send(frame);
         }
     });
 }

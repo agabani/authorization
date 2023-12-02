@@ -21,16 +21,16 @@ fn handle_request(
         let mut context = request.context.clone();
         context.resource.id = Uuid::new_v4().to_string();
 
-        connections.for_each(|connection| {
+        connections.for_each(|tx| {
             let frame_event = match context.resource.noun.as_str() {
                 "monster" => FrameEvent::Monster(context.clone()),
                 "player" => FrameEvent::Player(context.clone()),
                 noun => todo!("{noun}"),
             };
             let frame = Frame::Broadcast(frame_event);
-            connection.send(frame);
+            let _ = tx.send(frame);
         });
 
-        request.tx.send(Ok(context));
+        let _ = request.tx.send(Ok(context));
     });
 }

@@ -50,7 +50,7 @@ fn replicate_to_connection(
                 resource: identifier.clone().into(),
             };
             let frame = Frame::Broadcast(FrameEvent::Monster(context));
-            connection.send(frame);
+            let _ = connection.send(frame);
         }
     });
 }
