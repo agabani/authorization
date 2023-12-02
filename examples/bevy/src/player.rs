@@ -1,10 +1,13 @@
+use std::sync::{mpsc, Mutex};
+
 use bevy::prelude::*;
 
 use crate::{
     async_task::AsyncError,
     identity::{Identifier, Identifiers, Principal},
     network::{
-        send, Broadcast, ConnectionTx, Frame, FrameEvent, Replicate, Response, ResponseError,
+        send, Broadcast, ConnectionTx, Frame, FrameEvent, Replicate, RequestError, Response,
+        ResponseError,
     },
 };
 
@@ -116,5 +119,38 @@ fn spawn(
         identifiers.0.insert(identifier, id);
 
         info!("spawned {:?} {:?}", principal.0, context.resource);
+    }
+}
+
+pub struct PlayerService;
+
+impl PlayerService {
+    pub fn task(
+        principal: &Res<Principal>,
+        connection: &ConnectionTx,
+    ) -> Result<Response<Player>, RequestError> {
+        let context = authorization::Context {
+            action: authorization::Action {
+                noun: "player".to_string(),
+                scope: "world".to_string(),
+                verb: "spawn".to_string(),
+            },
+            data: Default::default(),
+            principal: principal.0.clone(),
+            resource: authorization::Resource {
+                id: "".to_string(),
+                noun: "player".to_string(),
+                scope: "world".to_string(),
+            },
+        };
+
+        let (tx, rx) = mpsc::channel();
+        let frame = Frame::Request(context, tx);
+
+        connection
+            .0
+            .send(frame)
+            .map(|_| Response::<Player>::new(Mutex::new(rx)))
+            .map_err(|_| RequestError::Disconnected)
     }
 }

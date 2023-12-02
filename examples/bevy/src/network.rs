@@ -111,6 +111,10 @@ pub struct Request {
     pub tx: mpsc::Sender<Result<authorization::Context, ResponseError>>,
 }
 
+pub enum RequestError {
+    Disconnected,
+}
+
 /*
  * ============================================================================
  * Response
