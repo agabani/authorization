@@ -5,7 +5,7 @@ use std::{
 
 use bevy::prelude::*;
 
-use crate::{monster::Monster, player::Player};
+use crate::{async_task::AsyncTask, monster::Monster, player::Player};
 
 /*
  * ============================================================================
@@ -117,44 +117,10 @@ pub struct Request {
  * ============================================================================
  */
 
-#[derive(Component)]
-pub struct Response<T> {
-    result: Option<Result<authorization::Context, ResponseError>>,
-    rx: Mutex<mpsc::Receiver<Result<authorization::Context, ResponseError>>>,
-    marker: PhantomData<T>,
-}
-
-impl<T> Response<T> {
-    pub fn new(rx: Mutex<mpsc::Receiver<Result<authorization::Context, ResponseError>>>) -> Self {
-        Self {
-            result: None,
-            rx,
-            marker: PhantomData,
-        }
-    }
-
-    pub fn poll_once(&mut self) -> &Option<Result<authorization::Context, ResponseError>> {
-        if self.result.is_some() {
-            return &self.result;
-        }
-
-        match self.rx.lock().expect("poisoned").try_recv() {
-            Ok(result) => {
-                self.result = Some(result);
-            }
-            Err(mpsc::TryRecvError::Disconnected) => {
-                self.result = Some(Err(ResponseError::Disconnected));
-            }
-            Err(mpsc::TryRecvError::Empty) => {}
-        };
-
-        &self.result
-    }
-}
+pub type Response<M> = AsyncTask<M, Result<authorization::Context, ResponseError>>;
 
 pub enum ResponseError {
     Denied,
-    Disconnected,
     NoAuthorityAvailable,
 }
 

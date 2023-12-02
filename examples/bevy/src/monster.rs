@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
+    async_task::AsyncError,
     identity::{Identifier, Identifiers, Principal},
     network::{
         send, Broadcast, ConnectionTx, Frame, FrameEvent, Replicate, Response, ResponseError,
@@ -77,20 +78,28 @@ fn spawn_from_response(
     mut identifiers: ResMut<Identifiers>,
     mut query: Query<(Entity, &mut Response<Monster>)>,
 ) {
-    query.for_each_mut(|(entity, mut response)| {
-        if let Some(result) = response.poll_once() {
+    query.for_each_mut(|(entity, mut response)| match response.poll_once() {
+        Ok(Some(Ok(context))) => {
             commands.entity(entity).despawn();
-            match result {
-                Ok(context) => {
-                    spawn(&mut commands, &principal, &mut identifiers, context);
-                }
-                Err(error) => match error {
-                    ResponseError::Denied => warn!("denied"),
-                    ResponseError::Disconnected => warn!("disconnected"),
-                    ResponseError::NoAuthorityAvailable => warn!("no authority available"),
-                },
-            }
-        };
+            spawn(&mut commands, &principal, &mut identifiers, context);
+        }
+        Ok(Some(Err(ResponseError::Denied))) => {
+            commands.entity(entity).despawn();
+            warn!("denied");
+        }
+        Ok(Some(Err(ResponseError::NoAuthorityAvailable))) => {
+            commands.entity(entity).despawn();
+            warn!("no authority available");
+        }
+        Ok(None) => {}
+        Err(AsyncError::Disconnected) => {
+            commands.entity(entity).despawn();
+            warn!("disconnected");
+        }
+        Err(AsyncError::Poisoned) => {
+            commands.entity(entity).despawn();
+            warn!("poisoned");
+        }
     });
 }
 
