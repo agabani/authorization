@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use crate::{
     identity::Principal,
     monster::Monster,
-    network::{send, ConnectionRx, ConnectionTx, ConnectionsRx, Frame, Replicate, ResponseError},
+    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Frame, Replicate, ResponseError},
     player::Player,
 };
 
@@ -40,7 +40,7 @@ fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
             info!("connected {:?}", handshake.principal);
             commands.spawn((
                 ConnectionRx(Mutex::new(rx)),
-                ConnectionTx(handshake.tx),
+                ConnectionTx::new(handshake.tx),
                 ConnectionTimeout(Timer::from_seconds(2.0, TimerMode::Once)),
                 Principal(handshake.principal),
             ));
@@ -80,7 +80,7 @@ fn read_connection(
                         Frame::Disconnect => todo!("disconnect"),
                         Frame::Ping => {
                             let frame = Frame::Pong;
-                            send(&mut commands, entity, tx, frame);
+                            tx.send(frame);
                         }
                         Frame::Pong => panic!("unexpected packet"),
                         Frame::Request(context, response) => {
@@ -93,7 +93,7 @@ fn read_connection(
                                 .find(|(_, _, principal)| principal.0.noun == "authority")
                             {
                                 let frame = Frame::Request(context, response.clone());
-                                if !send(&mut commands, entity, tx, frame) {
+                                if let Err(_) = tx.send(frame) {
                                     error!("failed to send to authority");
 
                                     if response
@@ -125,7 +125,7 @@ fn read_connection(
 
                             broadcast.for_each(|(entity, tx)| {
                                 let frame = Frame::Broadcast(event.clone());
-                                send(&mut commands, entity, tx, frame);
+                                tx.send(frame);
                             });
 
                             event.spawn_broadcast(&mut commands);
@@ -169,7 +169,7 @@ fn disconnect_timed_out_connections(
 ) {
     query.for_each_mut(|(entity, tx, mut timeout)| {
         if timeout.0.tick(time.delta()).finished() {
-            if let Err(_) = tx.0.send(Frame::Disconnect) {
+            if let Err(_) = tx.send(Frame::Disconnect) {
                 warn!("disconnected");
             }
             commands.entity(entity).despawn();

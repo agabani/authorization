@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 use crate::{
     identity::Principal,
-    network::{send, ConnectionRx, ConnectionTx, ConnectionsTx, Frame, Handshake, Request},
+    network::{ConnectionRx, ConnectionTx, ConnectionsTx, Frame, Handshake, Request},
 };
 
 pub struct NetworkClientPlugin;
@@ -62,7 +62,7 @@ fn initialize_connection(
             Ok(Frame::Connected(tx)) => {
                 commands
                     .entity(entity)
-                    .insert(ConnectionTx(tx))
+                    .insert(ConnectionTx::new(tx))
                     .insert(KeepAlive(Timer::from_seconds(1.0, TimerMode::Repeating)));
                 info!("connected {:?}", principal.0);
             }
@@ -142,7 +142,7 @@ fn keep_connection_alive(
     query.for_each_mut(|(entity, tx, mut keep_alive)| {
         if keep_alive.0.tick(time.delta()).finished() {
             let frame = Frame::Ping;
-            send(&mut commands, entity, tx, frame);
+            tx.send(frame);
         }
     });
 }
@@ -156,6 +156,6 @@ fn keep_connection_alive(
 fn replicate(mut commands: Commands, query: Query<(Entity, &ConnectionTx), Added<ConnectionTx>>) {
     query.for_each(|(entity, tx)| {
         let frame = Frame::Replicate;
-        send(&mut commands, entity, tx, frame);
+        tx.send(frame);
     });
 }

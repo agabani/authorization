@@ -34,7 +34,21 @@ pub struct Handshake {
 pub struct ConnectionRx(pub Mutex<mpsc::Receiver<Frame>>);
 
 #[derive(Component)]
-pub struct ConnectionTx(pub mpsc::Sender<Frame>);
+pub struct ConnectionTx(mpsc::Sender<Frame>);
+
+impl ConnectionTx {
+    pub fn new(sender: mpsc::Sender<Frame>) -> Self {
+        Self(sender)
+    }
+
+    pub fn send(&self, frame: Frame) -> Result<(), SendError> {
+        self.0.send(frame).map_err(|_| SendError::Disconnected)
+    }
+}
+
+pub enum SendError {
+    Disconnected,
+}
 
 pub enum Frame {
     Connected(mpsc::Sender<Frame>),
@@ -126,19 +140,4 @@ pub type Response<M> = AsyncTask<M, Result<authorization::Context, ResponseError
 pub enum ResponseError {
     Denied,
     NoAuthorityAvailable,
-}
-
-/*
- * ============================================================================
- * Send
- * ============================================================================
- */
-
-pub fn send(commands: &mut Commands, entity: Entity, tx: &ConnectionTx, frame: Frame) -> bool {
-    let result = tx.0.send(frame);
-    if result.is_err() {
-        commands.entity(entity).despawn();
-        warn!("disconnected");
-    }
-    result.is_ok()
 }

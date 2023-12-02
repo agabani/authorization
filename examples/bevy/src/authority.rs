@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::network::{send, ConnectionTx, Frame, FrameEvent, Request};
+use crate::network::{ConnectionTx, Frame, FrameEvent, Request};
 
 pub struct AuthorityPlugin;
 
@@ -13,7 +13,7 @@ impl Plugin for AuthorityPlugin {
 fn handle_request(
     mut commands: Commands,
     requests: Query<(Entity, &Request)>,
-    tx: Query<(Entity, &ConnectionTx)>,
+    connections: Query<&ConnectionTx>,
 ) {
     requests.for_each(|(entity, request)| {
         commands.entity(entity).despawn();
@@ -21,18 +21,16 @@ fn handle_request(
         let mut context = request.context.clone();
         context.resource.id = Uuid::new_v4().to_string();
 
-        tx.for_each(|(entity, tx)| {
+        connections.for_each(|connection| {
             let frame_event = match context.resource.noun.as_str() {
                 "monster" => FrameEvent::Monster(context.clone()),
                 "player" => FrameEvent::Player(context.clone()),
                 noun => todo!("{noun}"),
             };
             let frame = Frame::Broadcast(frame_event);
-            send(&mut commands, entity, tx, frame);
+            connection.send(frame);
         });
 
-        if let Err(_) = request.tx.send(Ok(context)) {
-            warn!("disconnected");
-        };
+        request.tx.send(Ok(context));
     });
 }

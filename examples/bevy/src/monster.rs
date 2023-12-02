@@ -6,7 +6,7 @@ use crate::{
     async_task::AsyncError,
     identity::{Identifier, Identifiers, Principal},
     network::{
-        send, Broadcast, ConnectionTx, Frame, FrameEvent, Replicate, RequestError, Response,
+        Broadcast, ConnectionTx, Frame, FrameEvent, Replicate, RequestError, Response,
         ResponseError,
     },
 };
@@ -35,7 +35,7 @@ fn replicate_to_connection(
     connections: Query<(Entity, &ConnectionTx), With<Replicate<Monster>>>,
     query: Query<&Identifier, With<Monster>>,
 ) {
-    connections.for_each(|(entity, tx)| {
+    connections.for_each(|(entity, connection)| {
         commands.entity(entity).remove::<Replicate<Monster>>();
 
         for identifier in &query {
@@ -49,11 +49,8 @@ fn replicate_to_connection(
                 principal: principal.0.clone(),
                 resource: identifier.clone().into(),
             };
-
             let frame = Frame::Broadcast(FrameEvent::Monster(context));
-            if !send(&mut commands, entity, tx, frame) {
-                return;
-            }
+            connection.send(frame);
         }
     });
 }
@@ -148,7 +145,6 @@ impl MonsterService {
         let frame = Frame::Request(context, tx);
 
         connection
-            .0
             .send(frame)
             .map(|_| Response::<Monster>::new(Mutex::new(rx)))
             .map_err(|_| RequestError::Disconnected)
