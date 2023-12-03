@@ -5,10 +5,7 @@ use bevy::prelude::*;
 use crate::{
     async_task::AsyncError,
     identity::{Identifier, Identifiers, Principal},
-    network::{
-        Broadcast, ConnectionTx, Frame, FrameEvent, Replicate, RequestError, Response,
-        ResponseError,
-    },
+    network::{Broadcast, ConnectionTx, Frame, Replicate, RequestError, Response, ResponseError},
 };
 
 pub struct MonsterPlugin;
@@ -49,7 +46,7 @@ fn replicate_to_connection(
                 principal: principal.0.clone(),
                 resource: identifier.clone().into(),
             };
-            let frame = Frame::Broadcast(FrameEvent::Monster(context));
+            let frame = Frame::Broadcast(context);
             let _ = connection.send(frame);
         }
     });

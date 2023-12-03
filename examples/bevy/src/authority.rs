@@ -1,6 +1,6 @@
 use bevy::{prelude::*, utils::Uuid};
 
-use crate::network::{ConnectionTx, Frame, FrameEvent, Request};
+use crate::network::{ConnectionTx, Frame, Request};
 
 pub struct AuthorityPlugin;
 
@@ -22,12 +22,7 @@ fn handle_request(
         context.resource.id = Uuid::new_v4().to_string();
 
         connections.for_each(|tx| {
-            let frame_event = match context.resource.noun.as_str() {
-                "monster" => FrameEvent::Monster(context.clone()),
-                "player" => FrameEvent::Player(context.clone()),
-                noun => todo!("{noun}"),
-            };
-            let frame = Frame::Broadcast(frame_event);
+            let frame = Frame::Broadcast(context.clone());
             let _ = tx.send(frame);
         });
 

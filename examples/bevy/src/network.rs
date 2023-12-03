@@ -92,41 +92,29 @@ impl ConnectionTx {
 
 /// Frame.
 pub enum Frame {
+    /// Connected.
     Connected(mpsc::Sender<Frame>),
+
+    /// Disconnected.
     Disconnect,
+
+    /// Ping.
     Ping,
+
+    /// Pong.
     Pong,
+
+    /// Request.
     Request(
         authorization::Context,
         mpsc::Sender<Result<authorization::Context, ResponseError>>,
     ),
-    Broadcast(FrameEvent),
+
+    /// Broadcast.
+    Broadcast(authorization::Context),
+
+    /// Replicate.
     Replicate,
-}
-
-#[derive(Clone)]
-pub enum FrameEvent {
-    Monster(authorization::Context),
-    Player(authorization::Context),
-}
-
-impl FrameEvent {
-    pub fn spawn_broadcast(self, commands: &mut Commands) {
-        match self {
-            FrameEvent::Monster(context) => {
-                commands.spawn(Broadcast {
-                    context,
-                    marker: PhantomData::<Monster>,
-                });
-            }
-            FrameEvent::Player(context) => {
-                commands.spawn(Broadcast {
-                    context,
-                    marker: PhantomData::<Player>,
-                });
-            }
-        }
-    }
 }
 
 /*
@@ -139,6 +127,26 @@ impl FrameEvent {
 pub struct Broadcast<T> {
     pub context: authorization::Context,
     marker: PhantomData<T>,
+}
+
+impl Broadcast<()> {
+    pub fn spawn(context: authorization::Context, commands: &mut Commands) {
+        if context.resource.noun == "monster" {
+            commands.spawn(Broadcast {
+                context,
+                marker: PhantomData::<Monster>,
+            });
+            return;
+        }
+
+        if context.resource.noun == "player" {
+            commands.spawn(Broadcast {
+                context,
+                marker: PhantomData::<Player>,
+            });
+            return;
+        }
+    }
 }
 
 /*

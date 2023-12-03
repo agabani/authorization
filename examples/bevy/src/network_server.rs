@@ -8,7 +8,9 @@ use bevy::prelude::*;
 use crate::{
     identity::Principal,
     monster::Monster,
-    network::{ConnectionRx, ConnectionTx, ConnectionsRx, Frame, Replicate, ResponseError},
+    network::{
+        Broadcast, ConnectionRx, ConnectionTx, ConnectionsRx, Frame, Replicate, ResponseError,
+    },
     player::Player,
 };
 
@@ -115,18 +117,18 @@ fn read_connection(
                             }
                         }
                     }
-                    Frame::Broadcast(event) => {
+                    Frame::Broadcast(context) => {
                         if principal.0.noun != "authority" {
                             warn!("permission");
                             return;
                         }
 
                         broadcast.for_each(|tx| {
-                            let frame = Frame::Broadcast(event.clone());
+                            let frame = Frame::Broadcast(context.clone());
                             let _ = tx.send(frame);
                         });
 
-                        event.spawn_broadcast(&mut commands);
+                        Broadcast::spawn(context, &mut commands);
                     }
                     Frame::Replicate => {
                         commands.entity(entity).insert((
