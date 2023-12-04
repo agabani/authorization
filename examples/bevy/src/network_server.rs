@@ -1,7 +1,4 @@
-use std::sync::{
-    mpsc::{self, TryRecvError},
-    Mutex,
-};
+use std::sync::{mpsc, Mutex};
 
 use bevy::prelude::*;
 
@@ -20,11 +17,7 @@ impl Plugin for NetworkServerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (
-                accept_connection,
-                disconnect_timed_out_connections,
-                read_connection,
-            ),
+            (accept_connection, disconnect_timed_out_connections, router),
         );
     }
 }
@@ -54,11 +47,11 @@ fn accept_connection(mut commands: Commands, connections: Res<ConnectionsRx>) {
 
 /*
  * ============================================================================
- * Read connection
+ * Router
  * ============================================================================
  */
 
-fn read_connection(
+fn router(
     mut commands: Commands,
     mut query: Query<(
         Entity,
@@ -67,86 +60,54 @@ fn read_connection(
         &ConnectionTx,
         &mut ConnectionTimeout,
     )>,
-    authority: Query<(Entity, &ConnectionTx, &Principal)>,
-    broadcast: Query<&ConnectionTx>,
+    connections: Query<(&ConnectionTx, &Principal)>,
 ) {
     query.for_each_mut(|(entity, principal, rx, tx, mut timeout)| loop {
-        match rx.try_recv() {
-            Ok(frame) => {
-                timeout.0.reset();
+        let Ok(frame) = rx.try_recv() else {
+            return;
+        };
 
-                match frame {
-                    Frame::Connected(_) => panic!("unexpected packet"),
-                    Frame::Disconnect => todo!("disconnect"),
-                    Frame::Ping => {
-                        let frame = Frame::Pong;
-                        let _ = tx.send(frame);
-                    }
-                    Frame::Pong => panic!("unexpected packet"),
-                    Frame::Request(context, response) => {
-                        if context.principal != principal.0 {
-                            warn!("impersonation");
-                        }
+        timeout.0.reset();
 
-                        if let Some((entity, tx, _)) = authority
-                            .iter()
-                            .find(|(_, _, principal)| principal.0.noun == "authority")
-                        {
-                            let frame = Frame::Request(context, response.clone());
-                            if let Err(_) = tx.send(frame) {
-                                error!("failed to send to authority");
+        match frame {
+            Frame::Connected(_) => panic!("unexpected packet"),
+            Frame::Disconnect => todo!("disconnect"),
+            Frame::Ping => {
+                let frame = Frame::Pong;
+                let _ = tx.send(frame);
+            }
+            Frame::Pong => panic!("unexpected packet"),
+            Frame::Request(context, response) => {
+                if context.principal == principal.0 {
+                    let Some((tx, _)) = connections
+                        .iter()
+                        .find(|(_, principal)| principal.0.noun == "authority")
+                    else {
+                        let _ = response.send(Err(ResponseError::NoAuthorityAvailable));
+                        return;
+                    };
 
-                                if response
-                                    .send(Err(ResponseError::NoAuthorityAvailable))
-                                    .is_err()
-                                {
-                                    warn!("failed to send error");
-                                }
-
-                                commands.entity(entity).despawn();
-                                warn!("disconnected");
-                            }
-                        } else {
-                            error!("no authority available");
-
-                            if response
-                                .send(Err(ResponseError::NoAuthorityAvailable))
-                                .is_err()
-                            {
-                                warn!("failed to send error");
-                            }
-                        }
-                    }
-                    Frame::Broadcast(context) => {
-                        if principal.0.noun != "authority" {
-                            warn!("permission");
-                            return;
-                        }
-
-                        broadcast.for_each(|tx| {
-                            let frame = Frame::Broadcast(context.clone());
-                            let _ = tx.send(frame);
-                        });
-
-                        Broadcast::spawn(context, &mut commands);
-                    }
-                    Frame::Replicate => {
-                        commands.entity(entity).insert((
-                            Replicate::<Monster>::default(),
-                            Replicate::<Player>::default(),
-                        ));
-                    }
+                    let frame = Frame::Request(context, response.clone());
+                    if tx.send(frame).is_err() {
+                        let _ = response.send(Err(ResponseError::NoAuthorityAvailable));
+                    };
                 }
             }
-            Err(error) => {
-                match error {
-                    TryRecvError::Empty => {}
-                    TryRecvError::Disconnected => {
-                        commands.entity(entity).despawn();
-                        warn!("disconnected");
-                    }
+            Frame::Broadcast(context) => {
+                if principal.0.noun == "authority" {
+                    connections.for_each(|(tx, _)| {
+                        let frame = Frame::Broadcast(context.clone());
+                        let _ = tx.send(frame);
+                    });
+
+                    Broadcast::spawn(context, &mut commands);
                 }
-                return;
+            }
+            Frame::Replicate => {
+                commands.entity(entity).insert((
+                    Replicate::<Monster>::default(),
+                    Replicate::<Player>::default(),
+                ));
             }
         }
     });
